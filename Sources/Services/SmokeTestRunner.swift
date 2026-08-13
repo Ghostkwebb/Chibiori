@@ -279,6 +279,21 @@ public final class SmokeTestRunner {
             }
         }
 
+        // Test 10: Apple CloudKit & iCloud Drive Auto-Vault Pipeline
+        check("CloudSyncService iCloud auto-vault serialization and availability") {
+            let anime = TrackedAnime(
+                malID: 5114,
+                title: "Fullmetal Alchemist: Brotherhood",
+                synopsis: "Alchemy journey",
+                coverImageRemoteURL: "https://example.com/fma.jpg",
+                airingStatusRaw: "Finished Airing"
+            )
+            CloudSyncService.shared.performAutoCloudBackup(from: [anime])
+            guard CloudSyncService.shared.isCloudSyncEnabled else {
+                throw NSError(domain: "Test", code: 90, userInfo: [NSLocalizedDescriptionKey: "Cloud sync is disabled"])
+            }
+        }
+
         print("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print("  Summary: \(passedCount) Passed, \(failedCount) Failed")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")

@@ -3,35 +3,35 @@ import Foundation
 
 @Model
 public final class TrackedAnime {
-    // Unique Primary Key mapping to MyAnimeList ID
-    @Attribute(.unique) public var malID: Int
+    // Primary Key mapping to MyAnimeList ID (Uniqueness managed at application level for CloudKit compatibility)
+    public var malID: Int = 0
 
     // External MAL Metadata Snapshot (Cached locally)
-    public var title: String
-    public var japaneseTitle: String?
-    public var synopsis: String
-    public var coverImageFilename: String? // Relative filename in Local Storage
-    public var coverImageRemoteURL: String
-    public var bannerImageRemoteURL: String? // Cinematic banner backdrop
-    public var airingStatusRaw: String // "Currently Airing", "Finished Airing", "Not Yet Airing"
-    public var totalEpisodes: Int? // Nil for unknown / ongoing
-    public var broadcastDayRaw: String? // e.g. "Mondays"
-    public var broadcastTimeUTC: String? // e.g. "15:00"
-    public var malScore: Double?
-    public var seasonYear: String? // e.g. "Spring 2026"
-    public var genres: [String] // Genre tags array
+    public var title: String = ""
+    public var japaneseTitle: String? = nil
+    public var synopsis: String = ""
+    public var coverImageFilename: String? = nil // Relative filename in Local Storage
+    public var coverImageRemoteURL: String = ""
+    public var bannerImageRemoteURL: String? = nil // Cinematic banner backdrop
+    public var airingStatusRaw: String = "Finished Airing" // "Currently Airing", "Finished Airing", "Not Yet Airing"
+    public var totalEpisodes: Int? = nil // Nil for unknown / ongoing
+    public var broadcastDayRaw: String? = nil // e.g. "Mondays"
+    public var broadcastTimeUTC: String? = nil // e.g. "15:00"
+    public var malScore: Double? = nil
+    public var seasonYear: String? = nil // e.g. "Spring 2026"
+    public var genres: [String] = [] // Genre tags array
 
     // User Local State (Immutable / User Controlled)
-    public var watchStatusRaw: String // "planToWatch", "watching", "completed", "onHold", "dropped"
-    public var currentEpisodeProgress: Int
-    public var userRating: Int? // 1 to 10
-    public var personalNotes: String
+    public var watchStatusRaw: String = "planToWatch" // "planToWatch", "watching", "completed", "onHold", "dropped"
+    public var currentEpisodeProgress: Int = 0
+    public var userRating: Int? = nil // 1 to 10
+    public var personalNotes: String = ""
 
     // Timestamps
-    public var dateAdded: Date // Refreshed when re-added to queue
-    public var dateStarted: Date? // Recorded on shift to "watching"
-    public var dateCompleted: Date? // Recorded on shift to "completed"
-    public var statusLastUpdatedAt: Date // Recorded on any status shift
+    public var dateAdded: Date = Date() // Refreshed when re-added to queue
+    public var dateStarted: Date? = nil // Recorded on shift to "watching"
+    public var dateCompleted: Date? = nil // Recorded on shift to "completed"
+    public var statusLastUpdatedAt: Date = Date() // Recorded on any status shift
 
     public init(
         malID: Int,

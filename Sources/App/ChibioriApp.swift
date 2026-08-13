@@ -35,10 +35,20 @@ struct ChibioriApp: App {
             let schema = Schema([
                 TrackedAnime.self
             ])
-            let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-            container = try ModelContainer(for: schema, configurations: [config])
+            // Configure SwiftData with Apple CloudKit synchronization
+            let cloudConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false, cloudKitDatabase: .automatic)
+            container = try ModelContainer(for: schema, configurations: [cloudConfig])
         } catch {
-            fatalError("Failed to initialize SwiftData ModelContainer: \(error.localizedDescription)")
+            // Graceful fallback to local-only SQLite storage
+            do {
+                let schema = Schema([
+                    TrackedAnime.self
+                ])
+                let localConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false, cloudKitDatabase: .none)
+                container = try ModelContainer(for: schema, configurations: [localConfig])
+            } catch {
+                fatalError("Failed to initialize SwiftData ModelContainer: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -193,6 +203,13 @@ struct MainContentView: View {
                 }
                 .inspectorColumnWidth(min: 290, ideal: 340, max: 430)
             }
+        }
+        .onAppear {
+            _ = CloudSyncService.shared.autoRestoreIfLibraryEmpty(context: modelContext)
+            CloudSyncService.shared.performAutoCloudBackup(from: allAnime)
+        }
+        .onChange(of: allAnime.count) {
+            CloudSyncService.shared.performAutoCloudBackup(from: allAnime)
         }
     }
 }

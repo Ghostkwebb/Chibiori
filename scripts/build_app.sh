@@ -74,9 +74,13 @@ EOF
 # Create PkgInfo
 echo -n "APPL????" > "$CONTENTS/PkgInfo"
 
-# Ad-hoc code sign for macOS Gatekeeper
-echo "✍️ Signing application bundle..."
-codesign --force --deep --sign - "$APP_PATH"
+# Ad-hoc code sign for macOS Gatekeeper and CloudKit entitlements
+echo "✍️ Signing application bundle with CloudKit entitlements..."
+if [ -f "$DIR/Chibiori.entitlements" ]; then
+    codesign --force --deep --sign - --entitlements "$DIR/Chibiori.entitlements" "$APP_PATH"
+else
+    codesign --force --deep --sign - "$APP_PATH"
+fi
 
 echo "✅ Successfully built and packaged Chibiori.app at:"
 echo "   $APP_PATH"
