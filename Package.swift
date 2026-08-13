@@ -1,0 +1,18 @@
+// swift-tools-version: 5.10
+import PackageDescription
+
+let package = Package(
+    name: "Chibiori",
+    platforms: [
+        .macOS(.v14)
+    ],
+    targets: [
+        .executableTarget(
+            name: "Chibiori",
+            path: "Sources",
+            resources: [
+                .process("Resources")
+            ]
+        )
+    ]
+)

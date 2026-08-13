@@ -1,0 +1,26 @@
+# Xcode / Swift Package Manager
+.build/
+Packages/
+Package.pins
+Package.resolved
+.swiftpm/
+DerivedData/
+
+# App Bundles & Build Output
+*.app/
+*.dSYM.zip
+*.dSYM
+
+# macOS System Files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Editor configs
+.vscode/
+.idea/
+*.swp
+*~
