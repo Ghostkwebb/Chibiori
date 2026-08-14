@@ -8,7 +8,7 @@ public struct CachedCoverImage: View {
     var cornerRadius: CGFloat = 8
     var shadowRadius: CGFloat = 4
 
-    @State private var image: NSImage?
+    @State private var asyncImage: NSImage?
     @State private var isLoading = false
 
     public init(
@@ -23,13 +23,19 @@ public struct CachedCoverImage: View {
         self.localFilename = localFilename
         self.cornerRadius = cornerRadius
         self.shadowRadius = shadowRadius
-        self._image = State(initialValue: CoverImageManager.shared.cachedImage(for: malID))
+    }
+
+    private var currentDisplayImage: NSImage? {
+        if let memoryImage = CoverImageManager.shared.cachedImage(for: malID) {
+            return memoryImage
+        }
+        return asyncImage
     }
 
     public var body: some View {
         ZStack {
-            if let image {
-                Image(nsImage: image)
+            if let img = currentDisplayImage {
+                Image(nsImage: img)
                     .resizable()
                     .aspectRatio(225 / 318, contentMode: .fill)
             } else {
@@ -55,11 +61,11 @@ public struct CachedCoverImage: View {
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .shadow(color: .black.opacity(0.18), radius: shadowRadius, x: 0, y: 2)
         .task(id: "\(malID)_\(remoteURLString)") {
-            if let cached = CoverImageManager.shared.cachedImage(for: malID) {
-                self.image = cached
-            } else {
-                await loadImage()
+            // If already cached synchronously in RAM, do not perform async load or state mutation
+            if CoverImageManager.shared.cachedImage(for: malID) != nil {
+                return
             }
+            await loadImage()
         }
     }
 
@@ -70,9 +76,9 @@ public struct CachedCoverImage: View {
             remoteURLString: remoteURLString,
             existingFilename: localFilename
         )
-        await MainActor.run {
-            self.image = fetchedImage
-            self.isLoading = false
+        if let fetchedImage {
+            self.asyncImage = fetchedImage
         }
+        self.isLoading = false
     }
 }

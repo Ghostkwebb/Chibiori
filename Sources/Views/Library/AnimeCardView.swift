@@ -49,11 +49,8 @@ public struct AnimeCardView: View, Equatable {
                             }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
-                            .background(Color.black.opacity(0.68))
+                            .background(Color.black.opacity(0.70))
                             .clipShape(Capsule())
-                            .overlay(
-                                Capsule().stroke(Color.yellow.opacity(0.4), lineWidth: 0.8)
-                            )
                         }
 
                         Spacer()
@@ -68,26 +65,23 @@ public struct AnimeCardView: View, Equatable {
                             }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
-                            .background(Color.black.opacity(0.68))
+                            .background(Color.black.opacity(0.70))
                             .clipShape(Capsule())
-                            .overlay(
-                                Capsule().stroke(Color.white.opacity(0.2), lineWidth: 0.8)
-                            )
                         }
                     }
                     .padding(6)
                     Spacer()
                 }
 
-                // Bottom Gradient Scrim & Episode Progress
+                // Bottom Gradient Scrim & Episode Info
                 VStack(spacing: 4) {
                     Spacer()
                     LinearGradient(
-                        colors: [Color.clear, Color.black.opacity(0.75)],
+                        colors: [Color.clear, Color.black.opacity(0.80)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .frame(height: 50)
+                    .frame(height: 52)
                 }
 
                 // Bottom Episode Info & Airing Badge
@@ -104,33 +98,33 @@ public struct AnimeCardView: View, Equatable {
                             .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.black.opacity(0.68))
+                            .background(Color.black.opacity(0.70))
                             .clipShape(Capsule())
                     }
                     .padding(6)
 
-                    // Linear Episode Progress Indicator
+                    // Linear Episode Progress Indicator (Zero-cost layout without GeometryReader)
                     if let total = anime.totalEpisodes, total > 0 {
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule()
-                                    .fill(Color.white.opacity(0.2))
-                                    .frame(height: 3)
+                        let progress = min(1.0, max(0.0, CGFloat(anime.currentEpisodeProgress) / CGFloat(total)))
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.white.opacity(0.25))
+                                .frame(height: 3)
 
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color.cyan, Color.purple],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.cyan, Color.purple],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
                                     )
-                                    .frame(width: geo.size.width * min(1.0, CGFloat(anime.currentEpisodeProgress) / CGFloat(total)), height: 3)
-                            }
+                                )
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .scaleEffect(x: progress, y: 1.0, anchor: .leading)
+                                .frame(height: 3)
                         }
-                        .frame(height: 3)
                         .padding(.horizontal, 6)
-                        .padding(.bottom, 4)
+                        .padding(.bottom, 5)
                     }
                 }
             }
@@ -196,14 +190,6 @@ public struct AnimeCardView: View, Equatable {
                 anime.incrementProgress()
             } label: {
                 Label("+1 Episode", systemImage: "plus")
-            }
-
-            Divider()
-
-            Button(role: .destructive) {
-                // Delete through inspector or context
-            } label: {
-                Label("Inspect / Edit", systemImage: "info.circle")
             }
         }
     }

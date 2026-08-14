@@ -33,8 +33,22 @@ private struct SmoothScrollIntrospector: NSViewRepresentable {
         scrollView.drawsBackground = false
         scrollView.wantsLayer = true
         scrollView.layer?.drawsAsynchronously = true
+        scrollView.layerContentsRedrawPolicy = .onSetNeedsDisplay
+
+        // ClipView (Viewport) GPU acceleration & hardware blitting
         scrollView.contentView.wantsLayer = true
         scrollView.contentView.layer?.drawsAsynchronously = true
+        scrollView.contentView.layerContentsRedrawPolicy = .onSetNeedsDisplay
+
+        // Native macOS momentum physics & axis locking
+        scrollView.usesPredominantAxisScrolling = true
+        scrollView.verticalScrollElasticity = .automatic
+        scrollView.horizontalScrollElasticity = .none
+
+        // Seamless overlay scrollers
+        scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
     }
 }
 

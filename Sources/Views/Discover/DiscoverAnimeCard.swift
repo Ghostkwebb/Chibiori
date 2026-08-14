@@ -58,11 +58,8 @@ public struct DiscoverAnimeCard: View, Equatable {
                             }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
-                            .background(Color.black.opacity(0.68))
+                            .background(Color.black.opacity(0.70))
                             .clipShape(Capsule())
-                            .overlay(
-                                Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.8)
-                            )
                         }
                     }
                     .padding(6)
@@ -73,7 +70,7 @@ public struct DiscoverAnimeCard: View, Equatable {
                 VStack(spacing: 4) {
                     Spacer()
                     LinearGradient(
-                        colors: [Color.clear, Color.black.opacity(0.75)],
+                        colors: [Color.clear, Color.black.opacity(0.80)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -91,11 +88,8 @@ public struct DiscoverAnimeCard: View, Equatable {
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
-                                .background(Color.black.opacity(0.68))
+                                .background(Color.black.opacity(0.70))
                                 .clipShape(Capsule())
-                                .overlay(
-                                    Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.8)
-                                )
                         }
                     }
                     .padding(6)
