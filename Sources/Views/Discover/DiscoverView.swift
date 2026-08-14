@@ -118,16 +118,18 @@ public struct DiscoverView: View {
                             ScrollView {
                                 LazyVGrid(columns: columns, spacing: 16) {
                                     ForEach(viewModel.results) { dto in
-                                        let isCardSelected: Bool = (state.selectedJikanDTO?.malId == dto.malId) ||
-                                            (trackedMap[dto.malId] != nil && trackedMap[dto.malId]?.persistentModelID == state.selectedAnimeID)
+                                        let isDTOSelected = state.selectedJikanDTO?.malId == dto.malId
+                                        let matchingTracked = trackedMap[dto.malId]
+                                        let isTrackedSelected = matchingTracked != nil && matchingTracked?.persistentModelID == state.selectedAnimeID
+                                        let isCardSelected = isDTOSelected || isTrackedSelected
 
                                         DiscoverAnimeCard(
                                             dto: dto,
-                                            existingTracked: trackedMap[dto.malId],
+                                            existingTracked: matchingTracked,
                                             isSelected: isCardSelected,
                                             onSelect: {
                                                 isGridFocused = true
-                                                if let tracked = trackedMap[dto.malId] {
+                                                if let tracked = matchingTracked {
                                                     state.selectTracked(tracked.persistentModelID)
                                                 } else {
                                                     state.selectDTO(dto)
@@ -139,6 +141,7 @@ public struct DiscoverView: View {
                                                 state.selectTracked(anime.persistentModelID)
                                             }
                                         }
+                                        .equatable()
                                         .id(dto.malId)
                                     }
                                 }

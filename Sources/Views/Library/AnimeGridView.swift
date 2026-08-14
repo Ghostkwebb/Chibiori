@@ -35,6 +35,7 @@ public struct AnimeGridView: View {
                             isFocused = true
                             selectedAnimeID = anime.persistentModelID
                         }
+                        .equatable()
                         .id(anime.persistentModelID)
                     }
                 }
