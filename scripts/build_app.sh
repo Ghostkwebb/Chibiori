@@ -33,12 +33,11 @@ if [ -f "$DIR/Chibiori_Logo.icns" ]; then
     cp "$DIR/Chibiori_Logo.icns" "$RESOURCES/Chibiori_Logo.icns"
 fi
 
-# Copy All Resource Bundles (SPM Assets)
-find "$DIR/.build" -name "*.bundle" | while read -r bundle; do
+# Copy Resource Bundles (if any)
+find "$DIR/.build" -name "*.bundle" 2>/dev/null | while read -r bundle; do
     echo "📦 Copying resource bundle: $bundle"
     cp -R "$bundle" "$RESOURCES/"
     cp -R "$bundle" "$MACOS/"
-    cp -R "$bundle" "$CONTENTS/"
 done
 
 # Create Info.plist

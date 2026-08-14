@@ -10,9 +10,7 @@ let package = Package(
         .executableTarget(
             name: "Chibiori",
             path: "Sources",
-            resources: [
-                .process("Resources")
-            ]
+            exclude: ["Resources"]
         )
     ]
 )

@@ -25,7 +25,8 @@ struct ChibioriApp: App {
         }
 
         // Set macOS application dock icon from Chibiori_Logo.icns
-        let icnsURL = Bundle.module.url(forResource: "Chibiori_Logo", withExtension: "icns") ??
+        let icnsURL = Bundle.main.url(forResource: "Chibiori_Logo", withExtension: "icns") ??
+            Bundle.main.resourceURL?.appendingPathComponent("Chibiori_Logo.icns") ??
             URL(fileURLWithPath: "/Users/ghostkwebb/Desktop/Chibiori/Chibiori_Logo.icns")
         if let iconImage = NSImage(contentsOf: icnsURL) {
             NSApplication.shared.applicationIconImage = iconImage

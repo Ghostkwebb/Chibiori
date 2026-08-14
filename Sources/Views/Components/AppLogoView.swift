@@ -11,22 +11,17 @@ public struct AppLogoView: View {
     }
 
     private var logoImage: NSImage? {
-        if let icnsURL = Bundle.module.url(forResource: "Chibiori_Logo", withExtension: "icns"),
+        if let icon = NSImage(named: NSImage.applicationIconName) {
+            return icon
+        }
+        if let icnsURL = Bundle.main.url(forResource: "Chibiori_Logo", withExtension: "icns") ??
+            Bundle.main.resourceURL?.appendingPathComponent("Chibiori_Logo.icns"),
            let image = NSImage(contentsOf: icnsURL) {
             return image
         }
         let icnsDesktop = "/Users/ghostkwebb/Desktop/Chibiori/Chibiori_Logo.icns"
         if FileManager.default.fileExists(atPath: icnsDesktop),
            let image = NSImage(contentsOfFile: icnsDesktop) {
-            return image
-        }
-        if let url = Bundle.module.url(forResource: "AppLogo", withExtension: "png"),
-           let image = NSImage(contentsOf: url) {
-            return image
-        }
-        let fallbackPath = "/Users/ghostkwebb/Desktop/myLogoOG.png"
-        if FileManager.default.fileExists(atPath: fallbackPath),
-           let image = NSImage(contentsOfFile: fallbackPath) {
             return image
         }
         return nil
