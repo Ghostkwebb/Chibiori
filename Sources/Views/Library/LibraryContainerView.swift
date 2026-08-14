@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 
+@MainActor
 public struct LibraryContainerView: View {
     let watchStatusFilter: WatchStatus?
     @Environment(NavigationState.self) private var navState

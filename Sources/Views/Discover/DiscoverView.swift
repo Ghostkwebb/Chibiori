@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 
+@MainActor
 public struct DiscoverView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var trackedAnimes: [TrackedAnime]

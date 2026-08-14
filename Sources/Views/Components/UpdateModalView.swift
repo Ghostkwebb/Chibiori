@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 
+@MainActor
 public struct UpdateModalView: View {
     @Environment(\.dismiss) private var dismiss
     private var updateManager = UpdateManager.shared

@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 
+@MainActor
 public struct SequelAlertsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var trackedAnimes: [TrackedAnime]

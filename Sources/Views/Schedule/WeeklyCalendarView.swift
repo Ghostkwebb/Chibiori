@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import AppKit
 
+@MainActor
 public struct WeeklyCalendarView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var trackedAnimes: [TrackedAnime]
