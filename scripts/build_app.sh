@@ -20,7 +20,12 @@ mkdir -p "$MACOS"
 mkdir -p "$RESOURCES"
 
 # Copy binary
-cp "$DIR/.build/release/Chibiori" "$MACOS/Chibiori"
+BINARY_PATH=$(find "$DIR/.build" -type f -name "Chibiori" -perm +111 | grep -i "release" | head -n 1)
+if [ -z "$BINARY_PATH" ]; then
+    BINARY_PATH=$(find "$DIR/.build" -type f -name "Chibiori" -perm +111 | head -n 1)
+fi
+echo "📦 Copying binary from: $BINARY_PATH"
+cp "$BINARY_PATH" "$MACOS/Chibiori"
 chmod +x "$MACOS/Chibiori"
 
 # Copy Icon
@@ -28,10 +33,13 @@ if [ -f "$DIR/Chibiori_Logo.icns" ]; then
     cp "$DIR/Chibiori_Logo.icns" "$RESOURCES/Chibiori_Logo.icns"
 fi
 
-# Copy Resource Bundles (SPM Assets)
-if [ -d "$DIR/.build/release/Chibiori_Chibiori.bundle" ]; then
-    cp -R "$DIR/.build/release/Chibiori_Chibiori.bundle" "$RESOURCES/"
-fi
+# Copy All Resource Bundles (SPM Assets)
+find "$DIR/.build" -name "*.bundle" | while read -r bundle; do
+    echo "📦 Copying resource bundle: $bundle"
+    cp -R "$bundle" "$RESOURCES/"
+    cp -R "$bundle" "$MACOS/"
+    cp -R "$bundle" "$CONTENTS/"
+done
 
 # Create Info.plist
 cat << 'EOF' > "$CONTENTS/Info.plist"
