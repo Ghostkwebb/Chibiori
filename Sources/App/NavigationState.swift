@@ -90,6 +90,11 @@ public final class NavigationState {
             UserDefaults.standard.set(titleLanguagePreference.rawValue, forKey: "preferredTitleLanguage")
         }
     }
+    public var gridCardSize: Double {
+        didSet {
+            UserDefaults.standard.set(gridCardSize, forKey: "libraryGridCardSize")
+        }
+    }
 
     public init() {
         if let savedLang = UserDefaults.standard.string(forKey: "preferredTitleLanguage"),
@@ -98,6 +103,25 @@ public final class NavigationState {
         } else {
             self.titleLanguagePreference = .english
         }
+
+        let savedGridSize = UserDefaults.standard.double(forKey: "libraryGridCardSize")
+        if savedGridSize >= 110.0 && savedGridSize <= 260.0 {
+            self.gridCardSize = savedGridSize
+        } else {
+            self.gridCardSize = 165.0
+        }
+    }
+
+    public func zoomInGrid() {
+        gridCardSize = min(260.0, gridCardSize + 20.0)
+    }
+
+    public func zoomOutGrid() {
+        gridCardSize = max(110.0, gridCardSize - 20.0)
+    }
+
+    public func resetGridSize() {
+        gridCardSize = 165.0
     }
 
     public func selectTracked(_ animeID: PersistentIdentifier) {

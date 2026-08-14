@@ -93,6 +93,40 @@ struct ChibioriApp: App {
                     }
                 }
 
+                Divider()
+
+                Menu("Grid Poster Size") {
+                    Button("Zoom In") {
+                        navState.zoomInGrid()
+                    }
+                    .keyboardShortcut("+", modifiers: [.command])
+
+                    Button("Zoom Out") {
+                        navState.zoomOutGrid()
+                    }
+                    .keyboardShortcut("-", modifiers: [.command])
+
+                    Button("Actual Size (165 pt)") {
+                        navState.resetGridSize()
+                    }
+                    .keyboardShortcut("0", modifiers: [.command])
+
+                    Divider()
+
+                    Button("Small (120 pt)") {
+                        navState.gridCardSize = 120
+                    }
+                    Button("Medium / Default (165 pt)") {
+                        navState.gridCardSize = 165
+                    }
+                    Button("Large (210 pt)") {
+                        navState.gridCardSize = 210
+                    }
+                    Button("Hero (260 pt)") {
+                        navState.gridCardSize = 260
+                    }
+                }
+
                 Button(navState.showInspector ? "Hide Inspector" : "Show Inspector") {
                     navState.showInspector.toggle()
                 }

@@ -9,6 +9,7 @@ public struct LibraryContainerView: View {
 
     @Query private var allAnime: [TrackedAnime]
     @State private var hydrationService = MetadataHydrationService.shared
+    @State private var showGridSizePopover = false
 
     public init(watchStatusFilter: WatchStatus? = nil) {
         self.watchStatusFilter = watchStatusFilter
@@ -201,6 +202,19 @@ public struct LibraryContainerView: View {
                     Label(state.titleLanguagePreference.displayName, systemImage: state.titleLanguagePreference.icon)
                 }
                 .help("Preferred Title Language (English, Romaji, Native)")
+
+                // Grid Size Slider Popover (Visible in Grid Mode)
+                if state.viewMode == .grid {
+                    Button {
+                        showGridSizePopover.toggle()
+                    } label: {
+                        Label("Grid Size", systemImage: "circle.grid.2x2")
+                    }
+                    .help("Adjust Grid Poster Size (Slider & Presets)")
+                    .popover(isPresented: $showGridSizePopover, arrowEdge: .bottom) {
+                        GridSizeControlPopover(gridCardSize: $state.gridCardSize)
+                    }
+                }
 
                 // View Mode Picker (Poster Grid vs Compact Table)
                 Picker("View Mode", selection: $state.viewMode) {

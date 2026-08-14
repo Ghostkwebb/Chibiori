@@ -4,14 +4,15 @@ import AppKit
 
 @MainActor
 public struct AnimeGridView: View {
+    @Environment(NavigationState.self) private var navState
     let animes: [TrackedAnime]
     @Binding var selectedAnimeID: PersistentIdentifier?
 
     @FocusState private var isFocused: Bool
 
-    private let columns = [
-        GridItem(.adaptive(minimum: 155, maximum: 195), spacing: 16)
-    ]
+    private var columns: [GridItem] {
+        [GridItem(.adaptive(minimum: navState.gridCardSize, maximum: navState.gridCardSize * 1.3), spacing: 16)]
+    }
 
     public init(animes: [TrackedAnime], selectedAnimeID: Binding<PersistentIdentifier?>) {
         self.animes = animes
@@ -21,7 +22,7 @@ public struct AnimeGridView: View {
     private var estimatedColumnsCount: Int {
         let windowWidth = NSApp.keyWindow?.frame.width ?? 1200
         let availableWidth = max(300, windowWidth - 340) // subtract sidebar and inspector
-        return max(1, Int(availableWidth / 190))
+        return max(1, Int(availableWidth / (navState.gridCardSize + 16)))
     }
 
     public var body: some View {

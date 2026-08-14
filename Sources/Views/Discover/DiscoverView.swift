@@ -10,16 +10,16 @@ public struct DiscoverView: View {
     @State private var viewModel = DiscoverViewModel()
     @FocusState private var isGridFocused: Bool
 
-    private let columns = [
-        GridItem(.adaptive(minimum: 155, maximum: 195), spacing: 16)
-    ]
+    private var columns: [GridItem] {
+        [GridItem(.adaptive(minimum: navState.gridCardSize, maximum: navState.gridCardSize * 1.3), spacing: 16)]
+    }
 
     public init() {}
 
     private var estimatedColumnsCount: Int {
         let windowWidth = NSApp.keyWindow?.frame.width ?? 1200
         let availableWidth = max(300, windowWidth - 340)
-        return max(1, Int(availableWidth / 190))
+        return max(1, Int(availableWidth / (navState.gridCardSize + 16)))
     }
 
     @State private var trackedMap: [Int: TrackedAnime] = [:]

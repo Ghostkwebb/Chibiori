@@ -385,6 +385,43 @@ public final class SmokeTestRunner {
             }
         }
 
+        // Test 13: NavigationState Grid Card Size Slider & Zoom Mechanics
+        check("NavigationState Grid Card Size slider & zoom boundaries") {
+            let navState = NavigationState()
+            navState.resetGridSize()
+            guard navState.gridCardSize == 165.0 else {
+                throw NSError(domain: "Test", code: 120, userInfo: [NSLocalizedDescriptionKey: "Initial grid size must be 165"])
+            }
+
+            // Test zoom in
+            navState.zoomInGrid()
+            guard navState.gridCardSize == 185.0 else {
+                throw NSError(domain: "Test", code: 121, userInfo: [NSLocalizedDescriptionKey: "Zoom in failed to add 20pt"])
+            }
+
+            // Test max boundary clamping
+            for _ in 0..<10 {
+                navState.zoomInGrid()
+            }
+            guard navState.gridCardSize == 260.0 else {
+                throw NSError(domain: "Test", code: 122, userInfo: [NSLocalizedDescriptionKey: "Max zoom should clamp to 260"])
+            }
+
+            // Test min boundary clamping
+            for _ in 0..<20 {
+                navState.zoomOutGrid()
+            }
+            guard navState.gridCardSize == 110.0 else {
+                throw NSError(domain: "Test", code: 123, userInfo: [NSLocalizedDescriptionKey: "Min zoom should clamp to 110"])
+            }
+
+            // Test reset
+            navState.resetGridSize()
+            guard navState.gridCardSize == 165.0 else {
+                throw NSError(domain: "Test", code: 124, userInfo: [NSLocalizedDescriptionKey: "Reset failed to restore 165pt"])
+            }
+        }
+
         print("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print("  Summary: \(passedCount) Passed, \(failedCount) Failed")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
