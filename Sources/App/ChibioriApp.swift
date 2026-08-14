@@ -187,69 +187,76 @@ struct MainContentView: View {
                 }
             }
             .inspector(isPresented: $state.showInspector) {
-                ZStack {
-                    AmbientGlowBackground()
+                GeometryReader { geo in
+                    ZStack {
+                        AmbientGlowBackground()
 
-                    Group {
-                        if let anime = selectedAnime {
-                            AnimeDetailInspectorView(anime: anime) {
-                                modelContext.delete(anime)
-                                try? modelContext.save()
-                                state.selectedAnimeID = nil
-                            }
-                            .id(anime.persistentModelID)
-                        } else if let dto = state.selectedJikanDTO {
-                            JikanAnimeDetailInspectorView(dto: dto) { newAnime in
-                                withAnimation(.spring(response: 0.3)) {
-                                    state.selectTracked(newAnime.persistentModelID)
+                        Group {
+                            if let anime = selectedAnime {
+                                AnimeDetailInspectorView(anime: anime) {
+                                    modelContext.delete(anime)
+                                    try? modelContext.save()
+                                    state.selectedAnimeID = nil
                                 }
+                                .id(anime.persistentModelID)
+                            } else if let dto = state.selectedJikanDTO {
+                                JikanAnimeDetailInspectorView(dto: dto) { newAnime in
+                                    withAnimation(.spring(response: 0.3)) {
+                                        state.selectTracked(newAnime.persistentModelID)
+                                    }
+                                }
+                                .id(dto.malId)
+                            } else {
+                                VStack(spacing: 12) {
+                                    Image(systemName: "sidebar.trailing")
+                                        .font(.system(size: 32))
+                                        .foregroundStyle(.tertiary)
+                                    Text("No Anime Selected")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                    Text("Click any anime in your Library, Search, or Weekly Calendar to view full details.")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.tertiary)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal, 20)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
                             }
-                            .id(dto.malId)
-                        } else {
-                            VStack(spacing: 12) {
-                                Image(systemName: "sidebar.trailing")
-                                    .font(.system(size: 32))
-                                    .foregroundStyle(.tertiary)
-                                Text("No Anime Selected")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                                Text("Click any anime in your Library, Search, or Weekly Calendar to view full details.")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.tertiary)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 20)
+                        }
+                        .background(
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.85))
+
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .fill(Color.black.opacity(0.38))
                             }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(0.22),
+                                            Color.white.opacity(0.05)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                        .shadow(color: Color.black.opacity(0.30), radius: 16, x: 0, y: 6)
+                        .padding(10)
+                        .onChange(of: geo.size.width) { _, newWidth in
+                            if newWidth >= 280 && newWidth <= 500 {
+                                state.inspectorWidth = newWidth
+                            }
                         }
                     }
-                    .background(
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.85))
-
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(Color.black.opacity(0.38))
-                        }
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.22),
-                                        Color.white.opacity(0.05)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                    .shadow(color: Color.black.opacity(0.30), radius: 16, x: 0, y: 6)
-                    .padding(10)
                 }
-                .inspectorColumnWidth(min: 290, ideal: 340, max: 430)
+                .inspectorColumnWidth(min: 280, ideal: state.inspectorWidth, max: 480)
             }
         }
         .onAppear {

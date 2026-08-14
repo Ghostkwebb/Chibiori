@@ -422,6 +422,48 @@ public final class SmokeTestRunner {
             }
         }
 
+        // Test 14: NavigationState Sidebar/Inspector/ViewMode/Sort Persistence
+        check("NavigationState sidebar, inspector, viewMode, sortOption persistence") {
+            let state1 = NavigationState()
+            state1.sidebarWidth = 275.0
+            state1.inspectorWidth = 410.0
+            state1.showInspector = false
+            state1.viewMode = .table
+            state1.selectedSortOption = .scoreDesc
+            state1.selectedSidebar = .watchStatus(.completed)
+
+            // Re-instantiate new NavigationState to verify loaded values from UserDefaults
+            let state2 = NavigationState()
+            guard state2.sidebarWidth == 275.0 else {
+                throw NSError(domain: "Test", code: 130, userInfo: [NSLocalizedDescriptionKey: "Sidebar width persistence failed: \(state2.sidebarWidth)"])
+            }
+            guard state2.inspectorWidth == 410.0 else {
+                throw NSError(domain: "Test", code: 131, userInfo: [NSLocalizedDescriptionKey: "Inspector width persistence failed: \(state2.inspectorWidth)"])
+            }
+            guard state2.showInspector == false else {
+                throw NSError(domain: "Test", code: 132, userInfo: [NSLocalizedDescriptionKey: "Show inspector persistence failed"])
+            }
+            guard state2.viewMode == .table else {
+                throw NSError(domain: "Test", code: 133, userInfo: [NSLocalizedDescriptionKey: "View mode persistence failed: \(state2.viewMode)"])
+            }
+            guard state2.selectedSortOption == .scoreDesc else {
+                throw NSError(domain: "Test", code: 134, userInfo: [NSLocalizedDescriptionKey: "Sort option persistence failed"])
+            }
+            guard state2.selectedSidebar == .watchStatus(.completed) else {
+                throw NSError(domain: "Test", code: 135, userInfo: [NSLocalizedDescriptionKey: "Sidebar selection persistence failed: \(String(describing: state2.selectedSidebar))"])
+            }
+
+            // Test SidebarSelection.from(id:) parser
+            guard SidebarSelection.from(id: "allAnime") == .allAnime,
+                  SidebarSelection.from(id: "search") == .search,
+                  SidebarSelection.from(id: "weeklyCalendar") == .weeklyCalendar,
+                  SidebarSelection.from(id: "sequelAlerts") == .sequelAlerts,
+                  SidebarSelection.from(id: "backup") == .backup,
+                  SidebarSelection.from(id: "status_planToWatch") == .watchStatus(.planToWatch) else {
+                throw NSError(domain: "Test", code: 136, userInfo: [NSLocalizedDescriptionKey: "SidebarSelection.from(id:) failed"])
+            }
+        }
+
         print("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print("  Summary: \(passedCount) Passed, \(failedCount) Failed")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")

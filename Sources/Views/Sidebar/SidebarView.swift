@@ -3,6 +3,7 @@ import SwiftData
 
 @MainActor
 public struct SidebarView: View {
+    @Environment(NavigationState.self) private var navState
     @Binding var selection: SidebarSelection?
     @Query private var allAnime: [TrackedAnime]
 
@@ -15,12 +16,13 @@ public struct SidebarView: View {
     }
 
     public var body: some View {
-        ZStack {
-            // Ambient Window Background
-            AmbientGlowBackground()
+        GeometryReader { geo in
+            ZStack {
+                // Ambient Window Background
+                AmbientGlowBackground()
 
-            // Floating Detached Glassmorphic Sidebar Card
-            VStack(alignment: .leading, spacing: 0) {
+                // Floating Detached Glassmorphic Sidebar Card
+                VStack(alignment: .leading, spacing: 0) {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 4) {
                         // Section 1: MY LIBRARY
@@ -168,9 +170,15 @@ public struct SidebarView: View {
             )
             .shadow(color: Color.black.opacity(0.30), radius: 16, x: 0, y: 6)
             .padding(10)
+            .onChange(of: geo.size.width) { _, newWidth in
+                if newWidth >= 190 && newWidth <= 350 {
+                    navState.sidebarWidth = newWidth
+                }
+            }
         }
-        .navigationSplitViewColumnWidth(min: 210, ideal: 235, max: 290)
     }
+    .navigationSplitViewColumnWidth(min: 200, ideal: navState.sidebarWidth, max: 350)
+}
 
     private func sectionHeader(_ title: String) -> some View {
         Text(title)

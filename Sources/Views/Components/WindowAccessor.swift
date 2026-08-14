@@ -25,6 +25,7 @@ private final class WindowObservingView: NSView {
         window.hasShadow = true
         window.collectionBehavior = [.managed, .participatesInCycle, .fullScreenPrimary]
         window.animationBehavior = .default
+        window.setFrameAutosaveName("ChibioriMainWindow")
 
         if let contentView = window.contentView {
             contentView.wantsLayer = true
