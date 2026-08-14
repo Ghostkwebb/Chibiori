@@ -58,6 +58,12 @@ struct ChibioriApp: App {
         .commands {
             SidebarCommands()
 
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates...") {
+                    UpdateManager.shared.checkForUpdates(manual: true)
+                }
+            }
+
             CommandMenu("View") {
                 Button("Poster Grid") {
                     navState.viewMode = .grid
@@ -199,10 +205,14 @@ struct MainContentView: View {
         .onAppear {
             _ = CloudSyncService.shared.autoRestoreIfLibraryEmpty(context: modelContext)
             CloudSyncService.shared.performAutoCloudBackup(from: allAnime)
+            UpdateManager.shared.checkForUpdates(manual: false)
         }
         .onChange(of: allAnime) {
             // Fires on any change: additions, deletions, and edits to episode progress/ratings/notes
             CloudSyncService.shared.performAutoCloudBackup(from: allAnime)
+        }
+        .sheet(isPresented: Bindable(UpdateManager.shared).showUpdateSheet) {
+            UpdateModalView()
         }
     }
 }

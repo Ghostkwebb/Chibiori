@@ -111,6 +111,35 @@ public struct SidebarView: View {
                     }
                     .padding(10)
                 }
+
+                // Footer: Version & Check for Updates
+                Divider()
+                    .padding(.horizontal, 10)
+
+                HStack(spacing: 8) {
+                    Text("v\(UpdateManager.shared.currentVersion)")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        UpdateManager.shared.checkForUpdates(manual: true)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text("Check Updates")
+                                .font(.system(size: 10.5, weight: .semibold))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .glassPill(tint: .cyan, isSelected: false)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
             }
             .background(
                 ZStack {

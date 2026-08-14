@@ -80,6 +80,11 @@ public struct BackupManagementView: View {
                     maintenanceSection
                         .padding(18)
                         .glassCard(cornerRadius: 18)
+
+                    // Software Update Section
+                    updateSection
+                        .padding(18)
+                        .glassCard(cornerRadius: 18)
                 }
                 .padding(20)
             }
@@ -515,5 +520,67 @@ public struct BackupManagementView: View {
             }
             isImporting = false
         }
+    }
+
+    // MARK: - Software Update Section
+    private var updateSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.cyan)
+                Text("SOFTWARE UPDATES & RELEASES")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Text("v\(UpdateManager.shared.currentVersion)")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(.cyan)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.cyan.opacity(0.15))
+                    .clipShape(Capsule())
+            }
+
+            Text("Chibiori checks GitHub Releases for new updates automatically. You can install new releases and relaunch with 1 click without rebuilding manually.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .lineSpacing(2)
+
+            HStack(spacing: 12) {
+                Button {
+                    UpdateManager.shared.checkForUpdates(manual: true)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                        Text("Check for Updates...")
+                    }
+                    .font(.system(size: 12, weight: .semibold))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .glassPill(tint: .cyan, isSelected: false)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    if let url = URL(string: "https://github.com/Ghostkwebb/Chibiori/releases") {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "globe")
+                        Text("View on GitHub")
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .glassPill(tint: .secondary, isSelected: false)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

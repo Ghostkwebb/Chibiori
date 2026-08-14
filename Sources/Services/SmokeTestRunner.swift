@@ -294,6 +294,22 @@ public final class SmokeTestRunner {
             }
         }
 
+        // Test 11: UpdateManager Semantic Versioning & GitHub Releases Comparison
+        check("UpdateManager semver comparison logic") {
+            guard UpdateManager.isVersion("v1.0.1", newerThan: "1.0.0") else {
+                throw NSError(domain: "Test", code: 100, userInfo: [NSLocalizedDescriptionKey: "Failed: v1.0.1 should be newer than 1.0.0"])
+            }
+            guard UpdateManager.isVersion("v2.0.0", newerThan: "1.9.9") else {
+                throw NSError(domain: "Test", code: 101, userInfo: [NSLocalizedDescriptionKey: "Failed: v2.0.0 should be newer than 1.9.9"])
+            }
+            guard !UpdateManager.isVersion("v1.0.0", newerThan: "1.0.0") else {
+                throw NSError(domain: "Test", code: 102, userInfo: [NSLocalizedDescriptionKey: "Failed: v1.0.0 is not newer than 1.0.0"])
+            }
+            guard !UpdateManager.isVersion("v0.9.5", newerThan: "1.0.0") else {
+                throw NSError(domain: "Test", code: 103, userInfo: [NSLocalizedDescriptionKey: "Failed: v0.9.5 is not newer than 1.0.0"])
+            }
+        }
+
         print("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print("  Summary: \(passedCount) Passed, \(failedCount) Failed")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
