@@ -2,6 +2,18 @@ import Foundation
 import SwiftData
 import Observation
 
+public struct ParentAnimeInfo: Sendable {
+    public let title: String
+    public let english: String?
+    public let native: String?
+
+    public init(title: String, english: String? = nil, native: String? = nil) {
+        self.title = title
+        self.english = english
+        self.native = native
+    }
+}
+
 public struct SequelAlertItem: Identifiable, Sendable, Codable, Equatable {
     public var id: Int { sequelMalId }
     public let parentMalId: Int
@@ -165,13 +177,19 @@ public final class SequelAlertService {
         }
 
         // Build mapping of parent anime by MAL ID
-        var parentAnimeMap: [Int: (title: String, english: String?, native: String?)] = [:]
-        var malIDs: [Int] = []
+        var map: [Int: ParentAnimeInfo] = [:]
+        var ids: [Int] = []
         for anime in completedAnime {
             guard anime.malID > 0 else { continue }
-            parentAnimeMap[anime.malID] = (anime.title, anime.englishTitle, anime.japaneseTitle)
-            malIDs.append(anime.malID)
+            map[anime.malID] = ParentAnimeInfo(
+                title: anime.title,
+                english: anime.englishTitle,
+                native: anime.japaneseTitle
+            )
+            ids.append(anime.malID)
         }
+        let parentAnimeMap = map
+        let malIDs = ids
 
         // Chunk IDs into batches of 45
         let chunkSize = 45
@@ -203,7 +221,7 @@ public final class SequelAlertService {
 
     private func queryBatchRelations(
         for malIDs: [Int],
-        parentAnimeMap: [Int: (title: String, english: String?, native: String?)]
+        parentAnimeMap: [Int: ParentAnimeInfo]
     ) async -> [SequelAlertItem] {
         let gql = """
         query ($ids: [Int]) {
