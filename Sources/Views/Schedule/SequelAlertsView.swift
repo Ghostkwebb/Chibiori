@@ -32,17 +32,19 @@ public struct SequelAlertsView: View {
                         .glassCard(cornerRadius: 18)
 
                     if service.isScanning {
-                        VStack(spacing: 12) {
+                        HStack(spacing: 10) {
                             ProgressView()
-                                .scaleEffect(1.2)
-                            Text("Checking upcoming sequels for your completed anime...")
-                                .font(.system(size: 13, weight: .medium))
+                                .scaleEffect(0.85)
+                            Text("Scanning upcoming sequels for your completed anime...")
+                                .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(.secondary)
+                            Spacer()
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(32)
-                        .glassCard(cornerRadius: 16)
-                    } else if service.alerts.isEmpty {
+                        .padding(14)
+                        .glassCard(cornerRadius: 12)
+                    }
+
+                    if service.alerts.isEmpty && !service.isScanning {
                         VStack(spacing: 12) {
                             Image(systemName: "sparkles.tv")
                                 .font(.system(size: 40))
@@ -70,7 +72,7 @@ public struct SequelAlertsView: View {
                         .frame(maxWidth: .infinity)
                         .padding(32)
                         .glassCard(cornerRadius: 16)
-                    } else {
+                    } else if !service.alerts.isEmpty {
                         // Grid of Sequel Alerts
                         LazyVStack(spacing: 14) {
                             ForEach(service.alerts) { alert in

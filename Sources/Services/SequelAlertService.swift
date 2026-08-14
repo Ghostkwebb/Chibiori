@@ -109,21 +109,45 @@ public struct SequelAlertItem: Identifiable, Sendable, Codable, Equatable {
 public final class SequelAlertService {
     public static let shared = SequelAlertService()
 
-    public var alerts: [SequelAlertItem] = []
+    public var alerts: [SequelAlertItem] = [] {
+        didSet {
+            saveAlertsToCache()
+        }
+    }
     public var isScanning: Bool = false
     public var lastScannedDate: Date? = nil
 
-    private init() {}
+    private init() {
+        loadAlertsFromCache()
+    }
+
+    private func saveAlertsToCache() {
+        if let data = try? JSONEncoder().encode(alerts) {
+            UserDefaults.standard.set(data, forKey: "savedSequelAlertsData")
+        }
+    }
+
+    private func loadAlertsFromCache() {
+        guard let data = UserDefaults.standard.data(forKey: "savedSequelAlertsData"),
+              let cached = try? JSONDecoder().decode([SequelAlertItem].self, from: data) else {
+            return
+        }
+        self.alerts = cached
+    }
 
     /// Scans completed anime list to detect newly announced or upcoming sequels/seasons
     public func scanForSequels(completedAnime: [TrackedAnime], existingTrackedIDs: Set<Int>) async {
         guard !isScanning else { return }
         isScanning = true
 
-        var discoveredAlerts: [SequelAlertItem] = []
+        // Keep existing alerts in a dictionary by sequel ID to merge seamlessly
+        var alertMap: [Int: SequelAlertItem] = [:]
+        for a in alerts {
+            alertMap[a.sequelMalId] = a
+        }
 
-        // Query in batches to respect rate limits
-        for anime in completedAnime.prefix(40) {
+        // Scan completed anime with gentle pacing to avoid AniList rate limits
+        for anime in completedAnime {
             let malID = anime.malID
             if let result = await queryRelations(
                 for: malID,
@@ -132,15 +156,17 @@ public final class SequelAlertService {
                 parentJapaneseTitle: anime.japaneseTitle
             ) {
                 for item in result {
-                    // Check if the sequel is NOT already in the user's library
-                    if !existingTrackedIDs.contains(item.sequelMalId) {
-                        discoveredAlerts.append(item)
-                    }
+                    alertMap[item.sequelMalId] = item
                 }
             }
+
+            // Pacing delay to respect AniList rate limit (90 req/min)
+            try? await Task.sleep(nanoseconds: 120_000_000)
         }
 
-        self.alerts = discoveredAlerts
+        self.alerts = Array(alertMap.values).sorted {
+            ($0.airingSeasonYear ?? "") < ($1.airingSeasonYear ?? "")
+        }
         self.lastScannedDate = Date()
         self.isScanning = false
     }
