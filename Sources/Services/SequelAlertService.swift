@@ -102,6 +102,24 @@ public struct SequelAlertItem: Identifiable, Sendable, Codable, Equatable {
             return parentTitle
         }
     }
+
+    public var asJikanDTO: JikanAnimeDTO {
+        let jpg = JikanImageFormatDTO(
+            imageUrl: sequelCoverImageURL,
+            smallImageUrl: nil,
+            largeImageUrl: sequelCoverImageURL
+        )
+        let images = JikanImagesDTO(jpg: jpg, webp: nil)
+        return JikanAnimeDTO(
+            malId: sequelMalId,
+            title: sequelTitle,
+            titleEnglish: sequelEnglishTitle,
+            titleJapanese: sequelJapaneseTitle,
+            synopsis: synopsis,
+            images: images,
+            status: sequelStatus == "RELEASING" ? "Currently Airing" : "Not yet aired"
+        )
+    }
 }
 
 @Observable
@@ -135,7 +153,7 @@ public final class SequelAlertService {
         self.alerts = cached
     }
 
-    /// Scans completed anime list to detect newly announced or upcoming sequels/seasons
+    /// Scans completed anime list in high-speed batches to detect newly announced or upcoming sequels/seasons
     public func scanForSequels(completedAnime: [TrackedAnime], existingTrackedIDs: Set<Int>) async {
         guard !isScanning else { return }
         isScanning = true
@@ -146,22 +164,34 @@ public final class SequelAlertService {
             alertMap[a.sequelMalId] = a
         }
 
-        // Scan completed anime with gentle pacing to avoid AniList rate limits
+        // Build mapping of parent anime by MAL ID
+        var parentAnimeMap: [Int: (title: String, english: String?, native: String?)] = [:]
+        var malIDs: [Int] = []
         for anime in completedAnime {
-            let malID = anime.malID
-            if let result = await queryRelations(
-                for: malID,
-                parentTitle: anime.title,
-                parentEnglishTitle: anime.englishTitle,
-                parentJapaneseTitle: anime.japaneseTitle
-            ) {
-                for item in result {
-                    alertMap[item.sequelMalId] = item
+            guard anime.malID > 0 else { continue }
+            parentAnimeMap[anime.malID] = (anime.title, anime.englishTitle, anime.japaneseTitle)
+            malIDs.append(anime.malID)
+        }
+
+        // Chunk IDs into batches of 45
+        let chunkSize = 45
+        let chunks = stride(from: 0, to: malIDs.count, by: chunkSize).map {
+            Array(malIDs[$0..<min($0 + chunkSize, malIDs.count)])
+        }
+
+        // Execute batch queries in parallel
+        await withTaskGroup(of: [SequelAlertItem].self) { group in
+            for chunk in chunks {
+                group.addTask {
+                    await self.queryBatchRelations(for: chunk, parentAnimeMap: parentAnimeMap)
                 }
             }
 
-            // Pacing delay to respect AniList rate limit (90 req/min)
-            try? await Task.sleep(nanoseconds: 120_000_000)
+            for await batchResults in group {
+                for item in batchResults {
+                    alertMap[item.sequelMalId] = item
+                }
+            }
         }
 
         self.alerts = Array(alertMap.values).sorted {
@@ -171,31 +201,31 @@ public final class SequelAlertService {
         self.isScanning = false
     }
 
-    private func queryRelations(
-        for malID: Int,
-        parentTitle: String,
-        parentEnglishTitle: String?,
-        parentJapaneseTitle: String?
-    ) async -> [SequelAlertItem]? {
+    private func queryBatchRelations(
+        for malIDs: [Int],
+        parentAnimeMap: [Int: (title: String, english: String?, native: String?)]
+    ) async -> [SequelAlertItem] {
         let gql = """
-        query ($idMal: Int) {
-          Media(idMal: $idMal, type: ANIME) {
-            idMal
-            title { romaji english native }
-            synonyms
-            relations {
-              edges {
-                relationType
-                node {
-                  id
-                  idMal
-                  title { romaji english native }
-                  synonyms
-                  status
-                  season
-                  seasonYear
-                  description
-                  coverImage { large }
+        query ($ids: [Int]) {
+          Page(page: 1, perPage: 50) {
+            media(idMal_in: $ids, type: ANIME) {
+              idMal
+              title { romaji english native }
+              synonyms
+              relations {
+                edges {
+                  relationType
+                  node {
+                    id
+                    idMal
+                    title { romaji english native }
+                    synonyms
+                    status
+                    season
+                    seasonYear
+                    description
+                    coverImage { large }
+                  }
                 }
               }
             }
@@ -203,98 +233,108 @@ public final class SequelAlertService {
         }
         """
 
-        guard let url = URL(string: "https://graphql.anilist.co") else { return nil }
-        var request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 8.0)
+        guard let url = URL(string: "https://graphql.anilist.co") else { return [] }
+        var request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 10.0)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Chibiori-macOS/1.0", forHTTPHeaderField: "User-Agent")
 
-        let bodyDict: [String: Any] = ["query": gql, "variables": ["idMal": malID]]
-        guard let httpBody = try? JSONSerialization.data(withJSONObject: bodyDict) else { return nil }
+        let bodyDict: [String: Any] = ["query": gql, "variables": ["ids": malIDs]]
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: bodyDict) else { return [] }
         request.httpBody = httpBody
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return [] }
 
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let dataObj = json["data"] as? [String: Any],
-                  let mediaObj = dataObj["Media"] as? [String: Any],
-                  let relObj = mediaObj["relations"] as? [String: Any],
-                  let edges = relObj["edges"] as? [[String: Any]] else {
-                return nil
+                  let pageObj = dataObj["Page"] as? [String: Any],
+                  let mediaList = pageObj["media"] as? [[String: Any]] else {
+                return []
             }
 
             var items: [SequelAlertItem] = []
 
-            for edge in edges {
-                let relType = edge["relationType"] as? String ?? ""
-                guard relType == "SEQUEL" || relType == "SIDE_STORY" else { continue }
+            for media in mediaList {
+                guard let parentMalId = media["idMal"] as? Int else { continue }
+                let parentInfo = parentAnimeMap[parentMalId]
+                let parentTitle = parentInfo?.title ?? ((media["title"] as? [String: Any])?["romaji"] as? String ?? "")
+                let parentEnglish = parentInfo?.english ?? ((media["title"] as? [String: Any])?["english"] as? String)
+                let parentNative = parentInfo?.native ?? ((media["title"] as? [String: Any])?["native"] as? String)
 
-                guard let node = edge["node"] as? [String: Any] else { continue }
-                let status = node["status"] as? String ?? ""
-                let season = node["season"] as? String
-                let seasonYear = node["seasonYear"] as? Int
+                guard let relObj = media["relations"] as? [String: Any],
+                      let edges = relObj["edges"] as? [[String: Any]] else { continue }
 
-                // Check if upcoming or recent sequel
-                let isUpcoming = (status == "NOT_YET_RELEASED" || status == "RELEASING")
-                let isFutureYear = (seasonYear ?? 0) >= 2025
+                for edge in edges {
+                    let relType = edge["relationType"] as? String ?? ""
+                    guard relType == "SEQUEL" || relType == "SIDE_STORY" || relType == "ALTERNATIVE" else { continue }
 
-                if isUpcoming || isFutureYear {
-                    let sequelMal = node["idMal"] as? Int ?? node["id"] as? Int ?? 0
-                    guard sequelMal > 0, sequelMal != malID else { continue }
+                    guard let node = edge["node"] as? [String: Any] else { continue }
+                    let status = node["status"] as? String ?? ""
+                    let season = node["season"] as? String
+                    let seasonYear = node["seasonYear"] as? Int
 
-                    let titleObj = node["title"] as? [String: Any]
-                    let romaji = titleObj?["romaji"] as? String ?? "Upcoming Sequel"
-                    let english = titleObj?["english"] as? String
-                    let native = titleObj?["native"] as? String
-                    let synonyms = node["synonyms"] as? [String] ?? []
+                    // Check if upcoming or newly released sequel
+                    let isUpcoming = (status == "NOT_YET_RELEASED" || status == "RELEASING")
+                    let isFutureOrRecentYear = (seasonYear ?? 0) >= 2025
 
-                    var resolvedEnglish = english
-                    if resolvedEnglish == nil || resolvedEnglish?.isEmpty == true {
-                        for syn in synonyms {
-                            let trimmed = syn.trimmingCharacters(in: .whitespacesAndNewlines)
-                            if trimmed.canBeConverted(to: .ascii) && trimmed.count >= 2 {
-                                resolvedEnglish = trimmed
-                                break
+                    if isUpcoming || isFutureOrRecentYear {
+                        let sequelMal = node["idMal"] as? Int ?? node["id"] as? Int ?? 0
+                        guard sequelMal > 0, sequelMal != parentMalId else { continue }
+
+                        let titleObj = node["title"] as? [String: Any]
+                        let romaji = titleObj?["romaji"] as? String ?? "Upcoming Sequel"
+                        let english = titleObj?["english"] as? String
+                        let native = titleObj?["native"] as? String
+                        let synonyms = node["synonyms"] as? [String] ?? []
+
+                        var resolvedEnglish = english
+                        if resolvedEnglish == nil || resolvedEnglish?.isEmpty == true {
+                            for syn in synonyms {
+                                let trimmed = syn.trimmingCharacters(in: .whitespacesAndNewlines)
+                                if trimmed.canBeConverted(to: .ascii) && trimmed.count >= 2 {
+                                    resolvedEnglish = trimmed
+                                    break
+                                }
                             }
                         }
+
+                        let coverObj = node["coverImage"] as? [String: Any]
+                        let cover = coverObj?["large"] as? String ?? ""
+
+                        var airingFormatted: String? = nil
+                        if let s = season?.capitalized, let y = seasonYear {
+                            airingFormatted = "\(s) \(y)"
+                        } else if let y = seasonYear {
+                            airingFormatted = "\(y)"
+                        }
+
+                        let desc = MetadataHydrationService.stripHTMLTags(from: node["description"] as? String)
+
+                        let alertItem = SequelAlertItem(
+                            parentMalId: parentMalId,
+                            parentTitle: parentTitle,
+                            parentEnglishTitle: parentEnglish,
+                            parentJapaneseTitle: parentNative,
+                            sequelMalId: sequelMal,
+                            sequelTitle: romaji,
+                            sequelEnglishTitle: resolvedEnglish,
+                            sequelJapaneseTitle: native,
+                            sequelCoverImageURL: cover,
+                            sequelStatus: status,
+                            airingSeasonYear: airingFormatted,
+                            synopsis: desc
+                        )
+                        items.append(alertItem)
                     }
-
-                    let coverObj = node["coverImage"] as? [String: Any]
-                    let cover = coverObj?["large"] as? String ?? ""
-
-                    var airingFormatted: String? = nil
-                    if let s = season?.capitalized, let y = seasonYear {
-                        airingFormatted = "\(s) \(y)"
-                    } else if let y = seasonYear {
-                        airingFormatted = "\(y)"
-                    }
-
-                    let desc = MetadataHydrationService.stripHTMLTags(from: node["description"] as? String)
-
-                    let alertItem = SequelAlertItem(
-                        parentMalId: malID,
-                        parentTitle: parentTitle,
-                        parentEnglishTitle: parentEnglishTitle,
-                        parentJapaneseTitle: parentJapaneseTitle,
-                        sequelMalId: sequelMal,
-                        sequelTitle: romaji,
-                        sequelEnglishTitle: resolvedEnglish,
-                        sequelJapaneseTitle: native,
-                        sequelCoverImageURL: cover,
-                        sequelStatus: status,
-                        airingSeasonYear: airingFormatted,
-                        synopsis: desc
-                    )
-                    items.append(alertItem)
                 }
             }
 
             return items
         } catch {
-            return nil
+            return []
         }
     }
 }

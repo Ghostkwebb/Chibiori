@@ -12,6 +12,8 @@ public struct SequelAlertsView: View {
 
     public init() {}
 
+    @FocusState private var isListFocused: Bool
+
     private var completedAnime: [TrackedAnime] {
         trackedAnimes.filter { $0.watchStatus == .completed }
     }
@@ -20,83 +22,162 @@ public struct SequelAlertsView: View {
         Set(trackedAnimes.map { $0.malID })
     }
 
+    private var trackedMap: [Int: TrackedAnime] {
+        Dictionary(uniqueKeysWithValues: trackedAnimes.map { ($0.malID, $0) })
+    }
+
+    private var displayedAlerts: [SequelAlertItem] {
+        service.alerts.filter { alert in
+            !existingIDs.contains(alert.sequelMalId) && !addedSequels.contains(alert.sequelMalId)
+        }
+    }
+
     public var body: some View {
         ZStack {
             AmbientGlowBackground()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    // Header Banner
-                    headerCard
-                        .padding(16)
-                        .glassCard(cornerRadius: 18)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        // Header Banner
+                        headerCard
+                            .padding(16)
+                            .glassCard(cornerRadius: 18)
 
-                    if service.isScanning {
-                        HStack(spacing: 10) {
-                            ProgressView()
-                                .scaleEffect(0.85)
-                            Text("Scanning upcoming sequels for your completed anime...")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                        }
-                        .padding(14)
-                        .glassCard(cornerRadius: 12)
-                    }
-
-                    if service.alerts.isEmpty && !service.isScanning {
-                        VStack(spacing: 12) {
-                            Image(systemName: "sparkles.tv")
-                                .font(.system(size: 40))
-                                .foregroundStyle(.secondary)
-                            Text("No Upcoming Sequels Found")
-                                .font(.system(size: 15, weight: .bold))
-                            Text("When a new season is announced for any anime in your Completed list, it will appear here.")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-
-                            Button {
-                                scanNow()
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "arrow.clockwise")
-                                    Text("Scan Completed Anime Now")
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
+                        if service.isScanning {
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                    .scaleEffect(0.85)
+                                Text("Scanning upcoming sequels for your completed anime...")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
                             }
-                            .buttonStyle(.borderedProminent)
-                            .padding(.top, 6)
+                            .padding(14)
+                            .glassCard(cornerRadius: 12)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(32)
-                        .glassCard(cornerRadius: 16)
-                    } else if !service.alerts.isEmpty {
-                        // Grid of Sequel Alerts
-                        LazyVStack(spacing: 14) {
-                            ForEach(service.alerts) { alert in
-                                SequelAlertCard(
-                                    alert: alert,
-                                    languagePreference: navState.titleLanguagePreference,
-                                    isAlreadyAdded: addedSequels.contains(alert.sequelMalId) || existingIDs.contains(alert.sequelMalId)
-                                ) {
-                                    trackSequel(alert)
+
+                        if displayedAlerts.isEmpty && !service.isScanning {
+                            VStack(spacing: 12) {
+                                Image(systemName: "sparkles.tv")
+                                    .font(.system(size: 40))
+                                    .foregroundStyle(.secondary)
+                                Text(service.alerts.isEmpty ? "No Upcoming Sequels Found" : "All Caught Up!")
+                                    .font(.system(size: 15, weight: .bold))
+                                Text(service.alerts.isEmpty
+                                     ? "When a new season is announced for any anime in your Completed list, it will appear here."
+                                     : "You've added all currently announced upcoming sequels to your library!")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+
+                                Button {
+                                    scanNow()
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "arrow.clockwise")
+                                        Text("Scan Completed Anime Now")
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .padding(.top, 6)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(32)
+                            .glassCard(cornerRadius: 16)
+                        } else if !displayedAlerts.isEmpty {
+                            // List of Sequel Alerts
+                            LazyVStack(spacing: 14) {
+                                ForEach(displayedAlerts) { alert in
+                                    let isSelected = navState.selectedJikanDTO?.malId == alert.sequelMalId ||
+                                                     (trackedMap[alert.sequelMalId] != nil && trackedMap[alert.sequelMalId]?.persistentModelID == navState.selectedAnimeID)
+
+                                    SequelAlertCard(
+                                        alert: alert,
+                                        languagePreference: navState.titleLanguagePreference,
+                                        isSelected: isSelected,
+                                        onSelect: {
+                                            isListFocused = true
+                                            selectAlert(alert)
+                                        },
+                                        onAdd: {
+                                            trackSequel(alert)
+                                        }
+                                    )
+                                    .id(alert.sequelMalId)
                                 }
                             }
                         }
                     }
+                    .padding(20)
                 }
-                .padding(20)
+                .smooth120HzScroll()
+                .focusable()
+                .focused($isListFocused)
+                .focusEffectDisabled()
+                .onAppear {
+                    isListFocused = true
+                }
+                .onTapGesture {
+                    isListFocused = true
+                }
+                .onKeyPress(.downArrow) {
+                    selectDelta(1, proxy: proxy)
+                    return .handled
+                }
+                .onKeyPress(.upArrow) {
+                    selectDelta(-1, proxy: proxy)
+                    return .handled
+                }
             }
-            .smooth120HzScroll()
         }
         .navigationTitle("Sequel & Season 2 Alerts")
-        .navigationSubtitle("\(service.alerts.count) Upcoming Announcements")
+        .navigationSubtitle("\(displayedAlerts.count) Upcoming Announcements")
         .onAppear {
             if service.alerts.isEmpty && !completedAnime.isEmpty {
                 scanNow()
             }
+        }
+    }
+
+    @MainActor
+    private func selectAlert(_ alert: SequelAlertItem) {
+        if let tracked = trackedMap[alert.sequelMalId] {
+            navState.selectTracked(tracked.persistentModelID)
+        } else {
+            navState.selectDTO(alert.asJikanDTO)
+            Task {
+                if let details = try? await JikanAPIService.shared.fetchAnimeDetails(id: alert.sequelMalId) {
+                    if navState.selectedJikanDTO?.malId == alert.sequelMalId {
+                        navState.selectedJikanDTO = details
+                    }
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func selectDelta(_ delta: Int, proxy: ScrollViewProxy) {
+        let alerts = displayedAlerts
+        guard !alerts.isEmpty else { return }
+
+        let currentMalID = navState.selectedJikanDTO?.malId ??
+                           trackedMap.first(where: { $0.value.persistentModelID == navState.selectedAnimeID })?.key ?? -1
+
+        let currentIndex = alerts.firstIndex(where: { $0.sequelMalId == currentMalID }) ?? -1
+        var nextIndex = currentIndex + delta
+        if currentIndex == -1 {
+            nextIndex = delta >= 0 ? 0 : alerts.count - 1
+        }
+        nextIndex = max(0, min(alerts.count - 1, nextIndex))
+        let target = alerts[nextIndex]
+
+        selectAlert(target)
+
+        withAnimation(.easeInOut(duration: 0.15)) {
+            proxy.scrollTo(target.sequelMalId, anchor: .center)
         }
     }
 
@@ -195,14 +276,18 @@ public struct SequelAlertsView: View {
         modelContext.insert(anime)
         try? modelContext.save()
 
-        addedSequels.insert(alert.sequelMalId)
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            addedSequels.insert(alert.sequelMalId)
+            navState.selectTracked(anime.persistentModelID)
+        }
     }
 }
 
 private struct SequelAlertCard: View {
     let alert: SequelAlertItem
     let languagePreference: TitleLanguagePreference
-    let isAlreadyAdded: Bool
+    let isSelected: Bool
+    let onSelect: () -> Void
     let onAdd: () -> Void
 
     var body: some View {
@@ -262,34 +347,33 @@ private struct SequelAlertCard: View {
                 HStack {
                     Spacer()
 
-                    if isAlreadyAdded {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("In Library (Plan to Watch)")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.green)
+                    Button {
+                        onAdd()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Add to Plan to Watch")
                         }
-                    } else {
-                        Button {
-                            onAdd()
-                        } label: {
-                            HStack(spacing: 5) {
-                                Image(systemName: "plus.circle.fill")
-                                Text("Add to Plan to Watch")
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .glassPill(tint: .purple, isSelected: false)
-                            .foregroundStyle(Color.white)
-                        }
-                        .buttonStyle(.plain)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .glassPill(tint: .purple, isSelected: false)
+                        .foregroundStyle(Color.white)
                     }
+                    .buttonStyle(.plain)
                 }
                 .padding(.top, 2)
             }
         }
         .padding(12)
         .glassCard(cornerRadius: 14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(isSelected ? Color.purple : Color.clear, lineWidth: 2)
+        )
+        .shadow(color: isSelected ? Color.purple.opacity(0.35) : Color.clear, radius: 10, x: 0, y: 3)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onSelect()
+        }
     }
 }
