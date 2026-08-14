@@ -247,6 +247,7 @@ public struct DiscoverView: View {
             synopsis: dto.synopsis ?? "",
             coverImageRemoteURL: dto.coverImageURL,
             airingStatusRaw: dto.status ?? "Finished Airing",
+            englishTitle: dto.titleEnglish,
             japaneseTitle: dto.titleJapanese,
             totalEpisodes: dto.episodes,
             broadcastDayRaw: dto.broadcast?.day,

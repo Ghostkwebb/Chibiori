@@ -6,8 +6,12 @@ public struct SequelAlertItem: Identifiable, Sendable, Codable, Equatable {
     public var id: Int { sequelMalId }
     public let parentMalId: Int
     public let parentTitle: String
+    public let parentEnglishTitle: String?
+    public let parentJapaneseTitle: String?
     public let sequelMalId: Int
     public let sequelTitle: String
+    public let sequelEnglishTitle: String?
+    public let sequelJapaneseTitle: String?
     public let sequelCoverImageURL: String
     public let sequelStatus: String
     public let airingSeasonYear: String?
@@ -17,8 +21,12 @@ public struct SequelAlertItem: Identifiable, Sendable, Codable, Equatable {
     public init(
         parentMalId: Int,
         parentTitle: String,
+        parentEnglishTitle: String? = nil,
+        parentJapaneseTitle: String? = nil,
         sequelMalId: Int,
         sequelTitle: String,
+        sequelEnglishTitle: String? = nil,
+        sequelJapaneseTitle: String? = nil,
         sequelCoverImageURL: String,
         sequelStatus: String,
         airingSeasonYear: String? = nil,
@@ -27,13 +35,72 @@ public struct SequelAlertItem: Identifiable, Sendable, Codable, Equatable {
     ) {
         self.parentMalId = parentMalId
         self.parentTitle = parentTitle
+        self.parentEnglishTitle = parentEnglishTitle
+        self.parentJapaneseTitle = parentJapaneseTitle
         self.sequelMalId = sequelMalId
         self.sequelTitle = sequelTitle
+        self.sequelEnglishTitle = sequelEnglishTitle
+        self.sequelJapaneseTitle = sequelJapaneseTitle
         self.sequelCoverImageURL = sequelCoverImageURL
         self.sequelStatus = sequelStatus
         self.airingSeasonYear = airingSeasonYear
         self.synopsis = synopsis
         self.detectedAt = detectedAt
+    }
+
+    public func displaySequelTitle(for preference: TitleLanguagePreference = .english) -> String {
+        switch preference {
+        case .english:
+            if let en = sequelEnglishTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !en.isEmpty {
+                return en
+            }
+            if !sequelTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return sequelTitle
+            }
+            if let jp = sequelJapaneseTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !jp.isEmpty {
+                return jp
+            }
+            return "Upcoming Sequel"
+        case .romaji:
+            if !sequelTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return sequelTitle
+            }
+            if let en = sequelEnglishTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !en.isEmpty {
+                return en
+            }
+            if let jp = sequelJapaneseTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !jp.isEmpty {
+                return jp
+            }
+            return "Upcoming Sequel"
+        case .native:
+            if let jp = sequelJapaneseTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !jp.isEmpty {
+                return jp
+            }
+            if !sequelTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return sequelTitle
+            }
+            if let en = sequelEnglishTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !en.isEmpty {
+                return en
+            }
+            return "Upcoming Sequel"
+        }
+    }
+
+    public func displayParentTitle(for preference: TitleLanguagePreference = .english) -> String {
+        switch preference {
+        case .english:
+            if let en = parentEnglishTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !en.isEmpty {
+                return en
+            }
+            return parentTitle
+        case .romaji:
+            return parentTitle
+        case .native:
+            if let jp = parentJapaneseTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !jp.isEmpty {
+                return jp
+            }
+            return parentTitle
+        }
     }
 }
 
@@ -58,7 +125,12 @@ public final class SequelAlertService {
         // Query in batches to respect rate limits
         for anime in completedAnime.prefix(40) {
             let malID = anime.malID
-            if let result = await queryRelations(for: malID, parentTitle: anime.title) {
+            if let result = await queryRelations(
+                for: malID,
+                parentTitle: anime.title,
+                parentEnglishTitle: anime.englishTitle,
+                parentJapaneseTitle: anime.japaneseTitle
+            ) {
                 for item in result {
                     // Check if the sequel is NOT already in the user's library
                     if !existingTrackedIDs.contains(item.sequelMalId) {
@@ -73,19 +145,26 @@ public final class SequelAlertService {
         self.isScanning = false
     }
 
-    private func queryRelations(for malID: Int, parentTitle: String) async -> [SequelAlertItem]? {
+    private func queryRelations(
+        for malID: Int,
+        parentTitle: String,
+        parentEnglishTitle: String?,
+        parentJapaneseTitle: String?
+    ) async -> [SequelAlertItem]? {
         let gql = """
         query ($idMal: Int) {
           Media(idMal: $idMal, type: ANIME) {
             idMal
-            title { romaji english }
+            title { romaji english native }
+            synonyms
             relations {
               edges {
                 relationType
                 node {
                   id
                   idMal
-                  title { romaji english }
+                  title { romaji english native }
+                  synonyms
                   status
                   season
                   seasonYear
@@ -141,7 +220,21 @@ public final class SequelAlertService {
                     guard sequelMal > 0, sequelMal != malID else { continue }
 
                     let titleObj = node["title"] as? [String: Any]
-                    let title = titleObj?["english"] as? String ?? titleObj?["romaji"] as? String ?? "Upcoming Sequel"
+                    let romaji = titleObj?["romaji"] as? String ?? "Upcoming Sequel"
+                    let english = titleObj?["english"] as? String
+                    let native = titleObj?["native"] as? String
+                    let synonyms = node["synonyms"] as? [String] ?? []
+
+                    var resolvedEnglish = english
+                    if resolvedEnglish == nil || resolvedEnglish?.isEmpty == true {
+                        for syn in synonyms {
+                            let trimmed = syn.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if trimmed.canBeConverted(to: .ascii) && trimmed.count >= 2 {
+                                resolvedEnglish = trimmed
+                                break
+                            }
+                        }
+                    }
 
                     let coverObj = node["coverImage"] as? [String: Any]
                     let cover = coverObj?["large"] as? String ?? ""
@@ -153,13 +246,17 @@ public final class SequelAlertService {
                         airingFormatted = "\(y)"
                     }
 
-                    let desc = node["description"] as? String
+                    let desc = MetadataHydrationService.stripHTMLTags(from: node["description"] as? String)
 
                     let alertItem = SequelAlertItem(
                         parentMalId: malID,
                         parentTitle: parentTitle,
+                        parentEnglishTitle: parentEnglishTitle,
+                        parentJapaneseTitle: parentJapaneseTitle,
                         sequelMalId: sequelMal,
-                        sequelTitle: title,
+                        sequelTitle: romaji,
+                        sequelEnglishTitle: resolvedEnglish,
+                        sequelJapaneseTitle: native,
                         sequelCoverImageURL: cover,
                         sequelStatus: status,
                         airingSeasonYear: airingFormatted,

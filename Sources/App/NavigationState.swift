@@ -85,8 +85,20 @@ public final class NavigationState {
     public var librarySearchQuery: String = ""
     public var selectedAiringStatusFilter: AiringStatus? = nil
     public var selectedSortOption: LibrarySortOption = .dateAddedDesc
+    public var titleLanguagePreference: TitleLanguagePreference {
+        didSet {
+            UserDefaults.standard.set(titleLanguagePreference.rawValue, forKey: "preferredTitleLanguage")
+        }
+    }
 
-    public init() {}
+    public init() {
+        if let savedLang = UserDefaults.standard.string(forKey: "preferredTitleLanguage"),
+           let pref = TitleLanguagePreference(rawValue: savedLang) {
+            self.titleLanguagePreference = pref
+        } else {
+            self.titleLanguagePreference = .english
+        }
+    }
 
     public func selectTracked(_ animeID: PersistentIdentifier) {
         self.selectedAnimeID = animeID

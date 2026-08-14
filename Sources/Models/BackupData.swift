@@ -32,7 +32,9 @@ public struct AnimeBackupRecord: Codable, Identifiable, Sendable {
     public let coverImageRemoteURL: String
 
     // Extended cached metadata (optional for backwards/forwards schema compatibility)
+    public let englishTitle: String?
     public let japaneseTitle: String?
+    public let customTitleOverride: String?
     public let synopsis: String?
     public let seasonYear: String?
     public let genres: [String]?
@@ -53,7 +55,9 @@ public struct AnimeBackupRecord: Codable, Identifiable, Sendable {
         totalEpisodes: Int?,
         malScore: Double?,
         coverImageRemoteURL: String,
+        englishTitle: String? = nil,
         japaneseTitle: String? = nil,
+        customTitleOverride: String? = nil,
         synopsis: String? = nil,
         seasonYear: String? = nil,
         genres: [String]? = nil,
@@ -73,7 +77,9 @@ public struct AnimeBackupRecord: Codable, Identifiable, Sendable {
         self.totalEpisodes = totalEpisodes
         self.malScore = malScore
         self.coverImageRemoteURL = coverImageRemoteURL
+        self.englishTitle = englishTitle
         self.japaneseTitle = japaneseTitle
+        self.customTitleOverride = customTitleOverride
         self.synopsis = synopsis
         self.seasonYear = seasonYear
         self.genres = genres

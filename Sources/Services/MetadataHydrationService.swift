@@ -32,13 +32,15 @@ public final class MetadataHydrationService {
             $0.airingStatusRaw.isEmpty ||
             $0.seasonYear == nil ||
             $0.airingStatus == nil ||
-            $0.totalEpisodes == nil
+            $0.totalEpisodes == nil ||
+            $0.englishTitle == nil ||
+            $0.japaneseTitle == nil
         }
         guard !missingAnimes.isEmpty else { return }
 
         isHydrating = true
         currentProgress = 0.0
-        statusMessage = "Enriching cover posters, airing status & dates for \(missingAnimes.count) anime..."
+        statusMessage = "Enriching titles, posters & dates for \(missingAnimes.count) anime..."
 
         // Group into chunks of 40 IDs for AniList GraphQL batch queries
         let chunkSize = 40
@@ -60,7 +62,10 @@ public final class MetadataHydrationService {
                     if anime.synopsis.isEmpty, let syn = meta.synopsis, !syn.isEmpty {
                         anime.synopsis = syn
                     }
-                    if anime.japaneseTitle == nil, let jp = meta.japaneseTitle {
+                    if anime.englishTitle == nil, let en = meta.englishTitle, !en.isEmpty {
+                        anime.englishTitle = en
+                    }
+                    if anime.japaneseTitle == nil, let jp = meta.japaneseTitle, !jp.isEmpty {
                         anime.japaneseTitle = jp
                     }
                     if anime.malScore == nil, let score = meta.score {
@@ -105,9 +110,24 @@ public final class MetadataHydrationService {
         }
     }
 
+    public static func stripHTMLTags(from string: String?) -> String? {
+        guard let string, !string.isEmpty else { return nil }
+        let cleaned = string
+            .replacingOccurrences(of: "<br\\s*/?>", with: "\n", options: .regularExpression)
+            .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&#039;", with: "'")
+            .replacingOccurrences(of: "&apos;", with: "'")
+        return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private struct FetchedMetadata {
         let malID: Int
         let title: String?
+        let englishTitle: String?
         let japaneseTitle: String?
         let coverURL: String?
         let synopsis: String?
@@ -127,6 +147,7 @@ public final class MetadataHydrationService {
               coverImage { large extraLarge }
               description
               title { romaji english native }
+              synonyms
               averageScore
               season
               seasonYear
@@ -173,13 +194,21 @@ public final class MetadataHydrationService {
                 let titleObj = item["title"] as? [String: Any]
                 let native = titleObj?["native"] as? String
                 let romaji = titleObj?["romaji"] as? String
+                let english = titleObj?["english"] as? String
+                let synonyms = item["synonyms"] as? [String] ?? []
 
-                let desc = (item["description"] as? String)?
-                    .replacingOccurrences(of: "<br>", with: "\n")
-                    .replacingOccurrences(of: "<i>", with: "")
-                    .replacingOccurrences(of: "</i>", with: "")
-                    .replacingOccurrences(of: "<b>", with: "")
-                    .replacingOccurrences(of: "</b>", with: "")
+                var resolvedEnglish = english
+                if resolvedEnglish == nil || resolvedEnglish?.isEmpty == true {
+                    for syn in synonyms {
+                        let trimmed = syn.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if trimmed.canBeConverted(to: .ascii) && trimmed.count >= 2 {
+                            resolvedEnglish = trimmed
+                            break
+                        }
+                    }
+                }
+
+                let desc = Self.stripHTMLTags(from: item["description"] as? String)
 
                 let avgScore = (item["averageScore"] as? Double ?? Double(item["averageScore"] as? Int ?? 0)) / 10.0
                 let rawStatus = item["status"] as? String
@@ -209,6 +238,7 @@ public final class MetadataHydrationService {
                 let meta = FetchedMetadata(
                     malID: idMal,
                     title: romaji,
+                    englishTitle: resolvedEnglish,
                     japaneseTitle: native,
                     coverURL: coverLarge,
                     synopsis: desc,

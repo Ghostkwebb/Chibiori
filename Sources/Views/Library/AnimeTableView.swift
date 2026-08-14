@@ -3,6 +3,7 @@ import SwiftData
 
 @MainActor
 public struct AnimeTableView: View {
+    @Environment(NavigationState.self) private var navState
     let animes: [TrackedAnime]
     @Binding var selectedAnimeID: PersistentIdentifier?
 
@@ -31,11 +32,11 @@ public struct AnimeTableView: View {
                     .frame(width: 32, height: 46)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(anime.title)
+                        Text(anime.displayTitle(for: navState.titleLanguagePreference))
                             .font(.system(size: 13, weight: .semibold))
                             .lineLimit(1)
-                        if let jp = anime.japaneseTitle, !jp.isEmpty {
-                            Text(jp)
+                        if let sub = anime.titleVariants.first(where: { $0.title != anime.displayTitle(for: navState.titleLanguagePreference) })?.title {
+                            Text(sub)
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)

@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 public struct DiscoverAnimeCard: View, Equatable {
+    @Environment(NavigationState.self) private var navState
     let dto: JikanAnimeDTO
     let existingTracked: TrackedAnime?
     var isSelected: Bool = false
@@ -14,6 +15,8 @@ public struct DiscoverAnimeCard: View, Equatable {
         lhs.dto.malId == rhs.dto.malId &&
         lhs.isSelected == rhs.isSelected &&
         lhs.existingTracked?.watchStatus == rhs.existingTracked?.watchStatus &&
+        lhs.dto.title == rhs.dto.title &&
+        lhs.dto.titleEnglish == rhs.dto.titleEnglish &&
         lhs.isHovered == rhs.isHovered
     }
 
@@ -99,7 +102,7 @@ public struct DiscoverAnimeCard: View, Equatable {
 
             // Title & Information
             VStack(alignment: .leading, spacing: 5) {
-                Text(dto.title)
+                Text(dto.displayTitle(for: navState.titleLanguagePreference))
                     .font(.system(size: 12, weight: .bold))
                     .lineLimit(2)
                     .frame(height: 32, alignment: .topLeading)

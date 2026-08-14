@@ -47,6 +47,7 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
 
     public let malId: Int
     public let title: String
+    public let titleEnglish: String?
     public let titleJapanese: String?
     public let synopsis: String?
     public let images: JikanImagesDTO?
@@ -66,6 +67,7 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
     enum CodingKeys: String, CodingKey {
         case malId = "mal_id"
         case title
+        case titleEnglish = "title_english"
         case titleJapanese = "title_japanese"
         case synopsis
         case images
@@ -86,6 +88,7 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
     public init(
         malId: Int,
         title: String,
+        titleEnglish: String? = nil,
         titleJapanese: String? = nil,
         synopsis: String? = nil,
         images: JikanImagesDTO? = nil,
@@ -104,6 +107,7 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
     ) {
         self.malId = malId
         self.title = title
+        self.titleEnglish = titleEnglish
         self.titleJapanese = titleJapanese
         self.synopsis = synopsis
         self.images = images
@@ -144,6 +148,58 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
             return "\(year)"
         }
         return nil
+    }
+
+    public func displayTitle(for preference: TitleLanguagePreference = .english) -> String {
+        switch preference {
+        case .english:
+            if let en = titleEnglish?.trimmingCharacters(in: .whitespacesAndNewlines), !en.isEmpty {
+                return en
+            }
+            if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return title
+            }
+            if let jp = titleJapanese?.trimmingCharacters(in: .whitespacesAndNewlines), !jp.isEmpty {
+                return jp
+            }
+            return "Untitled Anime"
+        case .romaji:
+            if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return title
+            }
+            if let en = titleEnglish?.trimmingCharacters(in: .whitespacesAndNewlines), !en.isEmpty {
+                return en
+            }
+            if let jp = titleJapanese?.trimmingCharacters(in: .whitespacesAndNewlines), !jp.isEmpty {
+                return jp
+            }
+            return "Untitled Anime"
+        case .native:
+            if let jp = titleJapanese?.trimmingCharacters(in: .whitespacesAndNewlines), !jp.isEmpty {
+                return jp
+            }
+            if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return title
+            }
+            if let en = titleEnglish?.trimmingCharacters(in: .whitespacesAndNewlines), !en.isEmpty {
+                return en
+            }
+            return "Untitled Anime"
+        }
+    }
+
+    public var titleVariants: [(preference: TitleLanguagePreference, title: String)] {
+        var list: [(TitleLanguagePreference, String)] = []
+        if let en = titleEnglish?.trimmingCharacters(in: .whitespacesAndNewlines), !en.isEmpty {
+            list.append((.english, en))
+        }
+        if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            list.append((.romaji, title))
+        }
+        if let jp = titleJapanese?.trimmingCharacters(in: .whitespacesAndNewlines), !jp.isEmpty {
+            list.append((.native, jp))
+        }
+        return list
     }
 }
 

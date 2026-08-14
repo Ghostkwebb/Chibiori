@@ -30,7 +30,9 @@ public final class BackupService: Sendable {
                 totalEpisodes: anime.totalEpisodes,
                 malScore: anime.malScore,
                 coverImageRemoteURL: anime.coverImageRemoteURL,
+                englishTitle: anime.englishTitle,
                 japaneseTitle: anime.japaneseTitle,
+                customTitleOverride: anime.customTitleOverride,
                 synopsis: anime.synopsis,
                 seasonYear: anime.seasonYear,
                 genres: anime.genres,
@@ -87,7 +89,9 @@ public final class BackupService: Sendable {
                 existing.totalEpisodes = record.totalEpisodes
                 existing.malScore = record.malScore
                 existing.coverImageRemoteURL = record.coverImageRemoteURL
+                if let en = record.englishTitle { existing.englishTitle = en }
                 if let jp = record.japaneseTitle { existing.japaneseTitle = jp }
+                if let custom = record.customTitleOverride { existing.customTitleOverride = custom }
                 if let syn = record.synopsis { existing.synopsis = syn }
                 if let sy = record.seasonYear { existing.seasonYear = sy }
                 if let g = record.genres { existing.genres = g }
@@ -103,7 +107,9 @@ public final class BackupService: Sendable {
                     synopsis: record.synopsis ?? "",
                     coverImageRemoteURL: record.coverImageRemoteURL,
                     airingStatusRaw: record.airingStatus,
+                    englishTitle: record.englishTitle,
                     japaneseTitle: record.japaneseTitle,
+                    customTitleOverride: record.customTitleOverride,
                     totalEpisodes: record.totalEpisodes,
                     broadcastDayRaw: record.broadcastDayRaw,
                     broadcastTimeUTC: record.broadcastTimeUTC,

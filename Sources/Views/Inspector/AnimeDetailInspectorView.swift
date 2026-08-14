@@ -3,11 +3,14 @@ import SwiftData
 
 @MainActor
 public struct AnimeDetailInspectorView: View {
+    @Environment(NavigationState.self) private var navState
+    @Environment(\.modelContext) private var modelContext
     @Bindable var anime: TrackedAnime
     let onDelete: () -> Void
 
-    @Environment(\.modelContext) private var modelContext
     @State private var showDeleteConfirmation = false
+    @State private var showCustomTitleEditor = false
+    @State private var tempCustomTitle = ""
     @State private var isEditingNotes = false
 
     private static let dateFormatter: DateFormatter = {
@@ -25,8 +28,10 @@ public struct AnimeDetailInspectorView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                // Large Poster & Info Showcase Header
+                // Header & Large Poster
                 headerSection
+                    .padding(14)
+                    .glassCard(cornerRadius: 16)
 
                 // Watch Status & Queue Actions
                 statusAndQueueSection
@@ -38,25 +43,25 @@ public struct AnimeDetailInspectorView: View {
                     .padding(14)
                     .glassCard(cornerRadius: 14)
 
-                // User Rating
+                // Rating Section
                 ratingSection
                     .padding(14)
-                    .glassCard(cornerRadius: 14)
+                    .glassCard(cornerRadius: 16)
 
-                // Personal Notes
+                // Personal Notes Section
                 notesSection
                     .padding(14)
-                    .glassCard(cornerRadius: 14)
+                    .glassCard(cornerRadius: 16)
 
-                // Synopsis
+                // Synopsis Section
                 synopsisSection
                     .padding(14)
-                    .glassCard(cornerRadius: 14)
+                    .glassCard(cornerRadius: 16)
 
-                // Detailed Metadata & Timestamps
+                // Metadata Details Section
                 metadataSection
                     .padding(14)
-                    .glassCard(cornerRadius: 14)
+                    .glassCard(cornerRadius: 16)
 
                 // Delete Action
                 deleteSection
@@ -65,6 +70,47 @@ public struct AnimeDetailInspectorView: View {
             .padding(12)
         }
         .frame(minWidth: 300, idealWidth: 350, maxWidth: 440)
+        .sheet(isPresented: $showCustomTitleEditor) {
+            VStack(spacing: 16) {
+                Text("Set Custom Anime Title")
+                    .font(.system(size: 15, weight: .bold))
+
+                Text("Enter a custom title to display for this anime across your library, or clear it to use the default title.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                TextField("Custom Title (e.g. Lord of the Mysteries)", text: $tempCustomTitle)
+                    .textFieldStyle(.roundedBorder)
+                    .padding(.horizontal)
+
+                HStack(spacing: 12) {
+                    Button("Clear Override") {
+                        anime.customTitleOverride = nil
+                        showCustomTitleEditor = false
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button("Cancel") {
+                        showCustomTitleEditor = false
+                    }
+                    .buttonStyle(.plain)
+
+                    Button("Save Title") {
+                        let trimmed = tempCustomTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                        anime.customTitleOverride = trimmed.isEmpty ? nil : trimmed
+                        showCustomTitleEditor = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(.horizontal)
+            }
+            .padding(20)
+            .frame(width: 380)
+        }
         .confirmationDialog(
             "Delete Anime",
             isPresented: $showDeleteConfirmation,
@@ -98,17 +144,49 @@ public struct AnimeDetailInspectorView: View {
 
             // Title & Highlights
             VStack(alignment: .leading, spacing: 6) {
-                Text(anime.title)
+                Text(anime.displayTitle(for: navState.titleLanguagePreference))
                     .font(.system(size: 15, weight: .bold))
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
 
-                if let jp = anime.japaneseTitle, !jp.isEmpty {
-                    Text(jp)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                // Title Language Variant Quick-Pills
+                HStack(spacing: 5) {
+                    ForEach(TitleLanguagePreference.allCases) { pref in
+                        let titleVal = anime.displayTitle(for: pref)
+                        Button {
+                            navState.titleLanguagePreference = pref
+                        } label: {
+                            Text(pref.shortName)
+                                .font(.system(size: 9.5, weight: navState.titleLanguagePreference == pref ? .bold : .medium))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    navState.titleLanguagePreference == pref ?
+                                    Color.purple.opacity(0.4) :
+                                    Color.white.opacity(0.1)
+                                )
+                                .foregroundStyle(navState.titleLanguagePreference == pref ? Color.white : Color.secondary)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .help("\(pref.displayName): \(titleVal)")
+                    }
+
+                    Button {
+                        tempCustomTitle = anime.customTitleOverride ?? anime.displayTitle(for: navState.titleLanguagePreference)
+                        showCustomTitleEditor = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 9))
+                            .padding(4)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(Circle())
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Edit custom title override")
                 }
+                .padding(.vertical, 2)
 
                 // Score & Airing Status Badges
                 HStack(spacing: 6) {
@@ -348,6 +426,17 @@ public struct AnimeDetailInspectorView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 6) {
+                if let en = anime.englishTitle, !en.isEmpty {
+                    metadataRow(label: "English", value: en)
+                }
+                metadataRow(label: "Romaji", value: anime.title)
+                if let jp = anime.japaneseTitle, !jp.isEmpty {
+                    metadataRow(label: "Native", value: jp)
+                }
+                if let custom = anime.customTitleOverride, !custom.isEmpty {
+                    metadataRow(label: "Custom", value: custom)
+                }
+                Divider().opacity(0.3)
                 metadataRow(label: "MAL ID", value: "\(anime.malID)")
                 if let score = anime.malScore {
                     metadataRow(label: "MAL Score", value: String(format: "%.2f", score))

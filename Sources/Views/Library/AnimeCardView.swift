@@ -1,6 +1,7 @@
 import SwiftUI
 
 public struct AnimeCardView: View, Equatable {
+    @Environment(NavigationState.self) private var navState
     @Bindable var anime: TrackedAnime
     let isSelected: Bool
     let onSelect: () -> Void
@@ -12,6 +13,9 @@ public struct AnimeCardView: View, Equatable {
         lhs.isSelected == rhs.isSelected &&
         lhs.anime.watchStatus == rhs.anime.watchStatus &&
         lhs.anime.currentEpisodeProgress == rhs.anime.currentEpisodeProgress &&
+        lhs.anime.title == rhs.anime.title &&
+        lhs.anime.englishTitle == rhs.anime.englishTitle &&
+        lhs.anime.customTitleOverride == rhs.anime.customTitleOverride &&
         lhs.isHovered == rhs.isHovered
     }
 
@@ -132,7 +136,7 @@ public struct AnimeCardView: View, Equatable {
 
             // Title & Controls
             VStack(alignment: .leading, spacing: 6) {
-                Text(anime.title)
+                Text(anime.displayTitle(for: navState.titleLanguagePreference))
                     .font(.system(size: 12, weight: .bold))
                     .lineLimit(2)
                     .frame(height: 32, alignment: .topLeading)

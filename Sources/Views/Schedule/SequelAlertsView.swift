@@ -76,6 +76,7 @@ public struct SequelAlertsView: View {
                             ForEach(service.alerts) { alert in
                                 SequelAlertCard(
                                     alert: alert,
+                                    languagePreference: navState.titleLanguagePreference,
                                     isAlreadyAdded: addedSequels.contains(alert.sequelMalId) || existingIDs.contains(alert.sequelMalId)
                                 ) {
                                     trackSequel(alert)
@@ -125,6 +126,35 @@ public struct SequelAlertsView: View {
 
             Spacer()
 
+            // Language Selector Picker Menu
+            Menu {
+                ForEach(TitleLanguagePreference.allCases) { pref in
+                    Button {
+                        navState.titleLanguagePreference = pref
+                    } label: {
+                        HStack {
+                            Image(systemName: pref.icon)
+                            Text(pref.displayName)
+                            if navState.titleLanguagePreference == pref {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: navState.titleLanguagePreference.icon)
+                    Text(navState.titleLanguagePreference.displayName)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9))
+                }
+                .font(.system(size: 11.5, weight: .medium))
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .glassPill(tint: .purple, isSelected: false)
+            }
+            .menuStyle(.borderlessButton)
+
             Button {
                 scanNow()
             } label: {
@@ -154,6 +184,8 @@ public struct SequelAlertsView: View {
             synopsis: alert.synopsis ?? "",
             coverImageRemoteURL: alert.sequelCoverImageURL,
             airingStatusRaw: alert.sequelStatus == "RELEASING" ? "Currently Airing" : "Not Yet Airing",
+            englishTitle: alert.sequelEnglishTitle,
+            japaneseTitle: alert.sequelJapaneseTitle,
             seasonYear: alert.airingSeasonYear
         )
         anime.watchStatus = .planToWatch
@@ -167,6 +199,7 @@ public struct SequelAlertsView: View {
 
 private struct SequelAlertCard: View {
     let alert: SequelAlertItem
+    let languagePreference: TitleLanguagePreference
     let isAlreadyAdded: Bool
     let onAdd: () -> Void
 
@@ -203,7 +236,7 @@ private struct SequelAlertCard: View {
                     }
                 }
 
-                Text(alert.sequelTitle)
+                Text(alert.displaySequelTitle(for: languagePreference))
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.primary)
                     .lineLimit(2)
@@ -212,7 +245,7 @@ private struct SequelAlertCard: View {
                     Text("Prequel in Library:")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                    Text(alert.parentTitle)
+                    Text(alert.displayParentTitle(for: languagePreference))
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.purple.opacity(0.9))
                 }

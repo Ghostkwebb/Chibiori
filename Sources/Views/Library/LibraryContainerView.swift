@@ -34,7 +34,9 @@ public struct LibraryContainerView: View {
         if !query.isEmpty {
             list = list.filter { anime in
                 anime.title.localizedCaseInsensitiveContains(query) ||
+                (anime.englishTitle?.localizedCaseInsensitiveContains(query) ?? false) ||
                 (anime.japaneseTitle?.localizedCaseInsensitiveContains(query) ?? false) ||
+                (anime.customTitleOverride?.localizedCaseInsensitiveContains(query) ?? false) ||
                 anime.genres.contains(where: { $0.localizedCaseInsensitiveContains(query) })
             }
         }
@@ -46,7 +48,10 @@ public struct LibraryContainerView: View {
         case .dateAddedAsc:
             list.sort { $0.dateAdded < $1.dateAdded }
         case .titleAsc:
-            list.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            list.sort {
+                $0.displayTitle(for: navState.titleLanguagePreference)
+                    .localizedCaseInsensitiveCompare($1.displayTitle(for: navState.titleLanguagePreference)) == .orderedAscending
+            }
         case .scoreDesc:
             list.sort { ($0.malScore ?? 0) > ($1.malScore ?? 0) }
         case .progressDesc:
@@ -108,7 +113,11 @@ public struct LibraryContainerView: View {
         }
         .navigationTitle(watchStatusFilter?.displayName ?? "All Anime")
         .navigationSubtitle("\(filteredAnime.count) \(filteredAnime.count == 1 ? "anime" : "animes")")
-        .searchable(text: $state.librarySearchQuery, prompt: "Search local library...")
+        .searchable(
+            text: $state.librarySearchQuery,
+            placement: .toolbar,
+            prompt: "Search local library..."
+        )
         .onAppear {
             let missing = allAnime.filter { $0.coverImageRemoteURL.isEmpty }
             if !missing.isEmpty && !hydrationService.isHydrating {
@@ -118,7 +127,7 @@ public struct LibraryContainerView: View {
             }
         }
         .toolbar {
-            ToolbarItemGroup(placement: .automatic) {
+            ToolbarItemGroup(placement: .primaryAction) {
                 // Airing Status Filter Pill / Menu
                 Menu {
                     Button {
@@ -172,6 +181,26 @@ public struct LibraryContainerView: View {
                     Label("Sort", systemImage: "arrow.up.arrow.down")
                 }
                 .help("Sort order")
+
+                // Title Language Preference Menu
+                Menu {
+                    ForEach(TitleLanguagePreference.allCases) { pref in
+                        Button {
+                            state.titleLanguagePreference = pref
+                        } label: {
+                            HStack {
+                                Image(systemName: pref.icon)
+                                Text(pref.displayName)
+                                if state.titleLanguagePreference == pref {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Label(state.titleLanguagePreference.displayName, systemImage: state.titleLanguagePreference.icon)
+                }
+                .help("Preferred Title Language (English, Romaji, Native)")
 
                 // View Mode Picker (Poster Grid vs Compact Table)
                 Picker("View Mode", selection: $state.viewMode) {

@@ -78,6 +78,21 @@ struct ChibioriApp: App {
 
                 Divider()
 
+                Menu("Title Language") {
+                    ForEach(TitleLanguagePreference.allCases) { pref in
+                        Button {
+                            navState.titleLanguagePreference = pref
+                        } label: {
+                            HStack {
+                                Text(pref.displayName)
+                                if navState.titleLanguagePreference == pref {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Button(navState.showInspector ? "Hide Inspector" : "Show Inspector") {
                     navState.showInspector.toggle()
                 }

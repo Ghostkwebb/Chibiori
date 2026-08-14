@@ -322,6 +322,69 @@ public final class SmokeTestRunner {
             }
         }
 
+        // Test 12: TitleLanguagePreference fallback resolution and HTML tag stripper
+        check("TitleLanguagePreference resolution and HTML tag stripper") {
+            let anime = TrackedAnime(
+                malID: 49818,
+                title: "Guimi Zhi Zhu: Xiaochou Pian",
+                synopsis: "The second season of <i>Guimi Zhi Zhu</i>.<br>An epic journey.",
+                coverImageRemoteURL: "https://example.com/lotm.jpg",
+                airingStatusRaw: "Finished Airing",
+                englishTitle: "Lord of the Mysteries",
+                japaneseTitle: "诡秘之主"
+            )
+
+            // Test English preference
+            guard anime.displayTitle(for: .english) == "Lord of the Mysteries" else {
+                throw NSError(domain: "Test", code: 110, userInfo: [NSLocalizedDescriptionKey: "English title resolution failed"])
+            }
+            // Test Romaji preference
+            guard anime.displayTitle(for: .romaji) == "Guimi Zhi Zhu: Xiaochou Pian" else {
+                throw NSError(domain: "Test", code: 111, userInfo: [NSLocalizedDescriptionKey: "Romaji title resolution failed"])
+            }
+            // Test Native preference
+            guard anime.displayTitle(for: .native) == "诡秘之主" else {
+                throw NSError(domain: "Test", code: 112, userInfo: [NSLocalizedDescriptionKey: "Native title resolution failed"])
+            }
+
+            // Test custom title override
+            anime.customTitleOverride = "LOTM Season 1"
+            guard anime.displayTitle(for: .english) == "LOTM Season 1" else {
+                throw NSError(domain: "Test", code: 113, userInfo: [NSLocalizedDescriptionKey: "Custom override resolution failed"])
+            }
+            anime.customTitleOverride = nil
+
+            // Test HTML tag stripper
+            let cleanSynopsis = MetadataHydrationService.stripHTMLTags(from: anime.synopsis)
+            guard cleanSynopsis == "The second season of Guimi Zhi Zhu.\nAn epic journey." else {
+                throw NSError(domain: "Test", code: 114, userInfo: [NSLocalizedDescriptionKey: "HTML tag stripping failed: \(cleanSynopsis ?? "")"])
+            }
+
+            // Test SequelAlertItem title resolution
+            let alert = SequelAlertItem(
+                parentMalId: 49818,
+                parentTitle: "Guimi Zhi Zhu: Xiaochou Pian",
+                parentEnglishTitle: "Lord of the Mysteries",
+                parentJapaneseTitle: "诡秘之主",
+                sequelMalId: 63632,
+                sequelTitle: "Guimi Zhi Zhu: Wu Mian Ren Pian",
+                sequelEnglishTitle: "Lord of the Mysteries: Faceless",
+                sequelJapaneseTitle: "诡秘之主：无面人篇",
+                sequelCoverImageURL: "https://example.com/lotm2.jpg",
+                sequelStatus: "NOT_YET_RELEASED"
+            )
+
+            guard alert.displaySequelTitle(for: .english) == "Lord of the Mysteries: Faceless" else {
+                throw NSError(domain: "Test", code: 115, userInfo: [NSLocalizedDescriptionKey: "Sequel English title failed"])
+            }
+            guard alert.displaySequelTitle(for: .romaji) == "Guimi Zhi Zhu: Wu Mian Ren Pian" else {
+                throw NSError(domain: "Test", code: 116, userInfo: [NSLocalizedDescriptionKey: "Sequel Romaji title failed"])
+            }
+            guard alert.displaySequelTitle(for: .native) == "诡秘之主：无面人篇" else {
+                throw NSError(domain: "Test", code: 117, userInfo: [NSLocalizedDescriptionKey: "Sequel Native title failed"])
+            }
+        }
+
         print("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print("  Summary: \(passedCount) Passed, \(failedCount) Failed")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")

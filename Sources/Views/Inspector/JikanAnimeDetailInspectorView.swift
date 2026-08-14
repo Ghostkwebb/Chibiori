@@ -3,6 +3,7 @@ import SwiftData
 
 @MainActor
 public struct JikanAnimeDetailInspectorView: View {
+    @Environment(NavigationState.self) private var navState
     @Environment(\.modelContext) private var modelContext
     let dto: JikanAnimeDTO
     let onAddedToLibrary: (TrackedAnime) -> Void
@@ -58,17 +59,35 @@ public struct JikanAnimeDetailInspectorView: View {
 
             // Title & Highlights
             VStack(alignment: .leading, spacing: 6) {
-                Text(dto.title)
+                Text(dto.displayTitle(for: navState.titleLanguagePreference))
                     .font(.system(size: 15, weight: .bold))
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
 
-                if let jp = dto.titleJapanese, !jp.isEmpty {
-                    Text(jp)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                // Title Language Variant Quick-Pills
+                HStack(spacing: 5) {
+                    ForEach(TitleLanguagePreference.allCases) { pref in
+                        let titleVal = dto.displayTitle(for: pref)
+                        Button {
+                            navState.titleLanguagePreference = pref
+                        } label: {
+                            Text(pref.shortName)
+                                .font(.system(size: 9.5, weight: navState.titleLanguagePreference == pref ? .bold : .medium))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    navState.titleLanguagePreference == pref ?
+                                    Color.purple.opacity(0.4) :
+                                    Color.white.opacity(0.1)
+                                )
+                                .foregroundStyle(navState.titleLanguagePreference == pref ? Color.white : Color.secondary)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .help("\(pref.displayName): \(titleVal)")
+                    }
                 }
+                .padding(.vertical, 2)
 
                 // Score & Airing Status Badges
                 HStack(spacing: 6) {
@@ -136,6 +155,7 @@ public struct JikanAnimeDetailInspectorView: View {
                         synopsis: dto.synopsis ?? "",
                         coverImageRemoteURL: dto.coverImageURL,
                         airingStatusRaw: dto.status ?? "Finished Airing",
+                        englishTitle: dto.titleEnglish,
                         japaneseTitle: dto.titleJapanese,
                         totalEpisodes: dto.episodes,
                         broadcastDayRaw: dto.broadcast?.day

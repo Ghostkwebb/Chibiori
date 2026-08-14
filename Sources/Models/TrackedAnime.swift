@@ -8,7 +8,9 @@ public final class TrackedAnime {
 
     // External MAL Metadata Snapshot (Cached locally)
     public var title: String = ""
+    public var englishTitle: String? = nil
     public var japaneseTitle: String? = nil
+    public var customTitleOverride: String? = nil
     public var synopsis: String = ""
     public var coverImageFilename: String? = nil // Relative filename in Local Storage
     public var coverImageRemoteURL: String = ""
@@ -39,7 +41,9 @@ public final class TrackedAnime {
         synopsis: String,
         coverImageRemoteURL: String,
         airingStatusRaw: String,
+        englishTitle: String? = nil,
         japaneseTitle: String? = nil,
+        customTitleOverride: String? = nil,
         totalEpisodes: Int? = nil,
         broadcastDayRaw: String? = nil,
         broadcastTimeUTC: String? = nil,
@@ -54,7 +58,9 @@ public final class TrackedAnime {
         self.coverImageRemoteURL = coverImageRemoteURL
         self.bannerImageRemoteURL = bannerImageRemoteURL
         self.airingStatusRaw = airingStatusRaw
+        self.englishTitle = englishTitle
         self.japaneseTitle = japaneseTitle
+        self.customTitleOverride = customTitleOverride
         self.totalEpisodes = totalEpisodes
         self.broadcastDayRaw = broadcastDayRaw
         self.broadcastTimeUTC = broadcastTimeUTC
@@ -91,6 +97,74 @@ public final class TrackedAnime {
     }
 
     // MARK: - State Manipulation Mechanics
+
+    /// Sets the watch status and manages lifecycle timestamps per specification
+    public func resetToWatchStatus(_ status: WatchStatus) {
+        watchStatusRaw = status.rawValue
+        currentEpisodeProgress = 0
+        dateAdded = Date()
+        statusLastUpdatedAt = Date()
+    }
+
+    /// Resolves the displayed title based on user preference (English, Romaji, Native) with graceful fallbacks
+    public func displayTitle(for preference: TitleLanguagePreference = .english) -> String {
+        if let custom = customTitleOverride?.trimmingCharacters(in: .whitespacesAndNewlines), !custom.isEmpty {
+            return custom
+        }
+
+        switch preference {
+        case .english:
+            if let en = englishTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !en.isEmpty {
+                return en
+            }
+            if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return title
+            }
+            if let jp = japaneseTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !jp.isEmpty {
+                return jp
+            }
+            return "Untitled Anime"
+
+        case .romaji:
+            if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return title
+            }
+            if let en = englishTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !en.isEmpty {
+                return en
+            }
+            if let jp = japaneseTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !jp.isEmpty {
+                return jp
+            }
+            return "Untitled Anime"
+
+        case .native:
+            if let jp = japaneseTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !jp.isEmpty {
+                return jp
+            }
+            if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return title
+            }
+            if let en = englishTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !en.isEmpty {
+                return en
+            }
+            return "Untitled Anime"
+        }
+    }
+
+    /// Returns list of all available title variants with non-empty values
+    public var titleVariants: [(preference: TitleLanguagePreference, title: String)] {
+        var list: [(TitleLanguagePreference, String)] = []
+        if let en = englishTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !en.isEmpty {
+            list.append((.english, en))
+        }
+        if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            list.append((.romaji, title))
+        }
+        if let jp = japaneseTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !jp.isEmpty {
+            list.append((.native, jp))
+        }
+        return list
+    }
 
     /// Sets the watch status and manages lifecycle timestamps per specification
     public func setWatchStatus(_ newStatus: WatchStatus) {
