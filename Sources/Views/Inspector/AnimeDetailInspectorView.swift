@@ -132,11 +132,11 @@ public struct AnimeDetailInspectorView: View {
                 }
                 .padding(.top, 2)
 
-                if let seasonYear = anime.seasonYear {
+                if let releaseDate = anime.seasonYearFormatted {
                     HStack(spacing: 4) {
                         Image(systemName: "calendar")
                             .font(.system(size: 10))
-                        Text(seasonYear)
+                        Text(releaseDate)
                             .font(.system(size: 11, weight: .medium))
                     }
                     .foregroundStyle(.secondary)
@@ -351,8 +351,8 @@ public struct AnimeDetailInspectorView: View {
                 if let score = anime.malScore {
                     metadataRow(label: "MAL Score", value: String(format: "%.2f", score))
                 }
-                if let seasonYear = anime.seasonYear {
-                    metadataRow(label: "Season", value: seasonYear)
+                if let releaseDate = anime.seasonYearFormatted {
+                    metadataRow(label: "Release Date", value: releaseDate)
                 }
                 if let day = anime.broadcastDayRaw {
                     metadataRow(label: "Broadcast", value: day)

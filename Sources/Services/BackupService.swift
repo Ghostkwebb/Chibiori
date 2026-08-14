@@ -164,6 +164,12 @@ public final class BackupService: Sendable {
                 if !entry.personalNotes.isEmpty {
                     existing.personalNotes = entry.personalNotes
                 }
+                if let airingRaw = entry.airingStatusRaw {
+                    existing.airingStatusRaw = airingRaw
+                }
+                if let start = entry.seriesStart {
+                    existing.seasonYear = start
+                }
                 existing.statusLastUpdatedAt = Date()
                 if entry.status == .completed && existing.dateCompleted == nil {
                     existing.dateCompleted = Date()
@@ -175,8 +181,9 @@ public final class BackupService: Sendable {
                     title: entry.title,
                     synopsis: "",
                     coverImageRemoteURL: "",
-                    airingStatusRaw: entry.status == .completed ? "Finished Airing" : "Currently Airing",
-                    totalEpisodes: entry.totalEpisodes
+                    airingStatusRaw: entry.airingStatusRaw ?? (entry.status == .completed ? "Finished Airing" : "Currently Airing"),
+                    totalEpisodes: entry.totalEpisodes,
+                    seasonYear: entry.seriesStart
                 )
                 newAnime.watchStatus = entry.status
                 newAnime.currentEpisodeProgress = entry.watchedEpisodes

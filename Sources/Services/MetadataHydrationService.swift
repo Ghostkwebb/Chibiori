@@ -19,19 +19,26 @@ public final class MetadataHydrationService {
 
     private init() {}
 
-    /// Hydrates all TrackedAnime models that have missing cover images or synopses
+    /// Hydrates all TrackedAnime models that have missing cover images, synopses, airing status, or full release dates
     public func hydrateMissingMetadata(context: ModelContext) async {
         guard !isHydrating else { return }
 
         let fetchDescriptor = FetchDescriptor<TrackedAnime>()
         guard let allAnimes = try? context.fetch(fetchDescriptor) else { return }
 
-        let missingAnimes = allAnimes.filter { $0.coverImageRemoteURL.isEmpty || $0.synopsis.isEmpty }
+        let missingAnimes = allAnimes.filter {
+            $0.coverImageRemoteURL.isEmpty ||
+            $0.synopsis.isEmpty ||
+            $0.airingStatusRaw.isEmpty ||
+            $0.seasonYear == nil ||
+            $0.airingStatus == nil ||
+            $0.totalEpisodes == nil
+        }
         guard !missingAnimes.isEmpty else { return }
 
         isHydrating = true
         currentProgress = 0.0
-        statusMessage = "Fetching cover images and metadata for \(missingAnimes.count) anime..."
+        statusMessage = "Enriching cover posters, airing status & dates for \(missingAnimes.count) anime..."
 
         // Group into chunks of 40 IDs for AniList GraphQL batch queries
         let chunkSize = 40
@@ -59,8 +66,14 @@ public final class MetadataHydrationService {
                     if anime.malScore == nil, let score = meta.score {
                         anime.malScore = score
                     }
-                    if anime.seasonYear == nil, let year = meta.seasonYear {
-                        anime.seasonYear = year
+                    if let status = meta.airingStatusRaw, !status.isEmpty {
+                        anime.airingStatusRaw = status
+                    }
+                    if let releaseDate = meta.seasonYear, !releaseDate.isEmpty {
+                        anime.seasonYear = releaseDate
+                    }
+                    if anime.totalEpisodes == nil, let eps = meta.episodes, eps > 0 {
+                        anime.totalEpisodes = eps
                     }
                     if anime.genres.isEmpty, !meta.genres.isEmpty {
                         anime.genres = meta.genres
@@ -72,7 +85,7 @@ public final class MetadataHydrationService {
 
             processed += chunk.count
             currentProgress = Double(processed) / Double(missingAnimes.count)
-            statusMessage = "Fetched \(processed) of \(missingAnimes.count) anime posters..."
+            statusMessage = "Updated \(processed) of \(missingAnimes.count) anime..."
 
             if index < chunks.count - 1 {
                 // Gentle delay between batches to respect rate limits
@@ -80,7 +93,7 @@ public final class MetadataHydrationService {
             }
         }
 
-        statusMessage = "All \(missingAnimes.count) anime covers updated successfully!"
+        statusMessage = "All \(missingAnimes.count) anime enriched successfully!"
         isHydrating = false
 
         // Clear status message after a short delay
@@ -99,7 +112,9 @@ public final class MetadataHydrationService {
         let coverURL: String?
         let synopsis: String?
         let score: Double?
+        let airingStatusRaw: String?
         let seasonYear: String?
+        let episodes: Int?
         let genres: [String]
     }
 
@@ -116,6 +131,9 @@ public final class MetadataHydrationService {
               season
               seasonYear
               status
+              episodes
+              startDate { year month day }
+              endDate { year month day }
               genres
             }
           }
@@ -164,14 +182,27 @@ public final class MetadataHydrationService {
                     .replacingOccurrences(of: "</b>", with: "")
 
                 let avgScore = (item["averageScore"] as? Double ?? Double(item["averageScore"] as? Int ?? 0)) / 10.0
+                let rawStatus = item["status"] as? String
+                let eps = item["episodes"] as? Int
+
+                // Parse exact start and end dates
+                let startObj = item["startDate"] as? [String: Any]
+                let startYear = startObj?["year"] as? Int
+                let startMonth = startObj?["month"] as? Int
+                let startDay = startObj?["day"] as? Int
+
+                let formattedDate = AnimeDateFormatter.format(year: startYear, month: startMonth, day: startDay)
+
                 let season = item["season"] as? String
                 let year = item["seasonYear"] as? Int
-                var seasonYearFormatted: String? = nil
+                var fallbackDate: String? = nil
                 if let s = season?.capitalized, let y = year {
-                    seasonYearFormatted = "\(s) \(y)"
+                    fallbackDate = "\(s) \(y)"
                 } else if let y = year {
-                    seasonYearFormatted = "\(y)"
+                    fallbackDate = "\(y)"
                 }
+
+                let finalReleaseDate = formattedDate ?? fallbackDate
 
                 let genres = item["genres"] as? [String] ?? []
 
@@ -182,7 +213,9 @@ public final class MetadataHydrationService {
                     coverURL: coverLarge,
                     synopsis: desc,
                     score: avgScore > 0 ? avgScore : nil,
-                    seasonYear: seasonYearFormatted,
+                    airingStatusRaw: rawStatus,
+                    seasonYear: finalReleaseDate,
+                    episodes: eps,
                     genres: genres
                 )
                 map[idMal] = meta

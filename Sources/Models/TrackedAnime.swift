@@ -85,6 +85,11 @@ public final class TrackedAnime {
         AiringStatus.from(raw: airingStatusRaw)
     }
 
+    public var seasonYearFormatted: String? {
+        guard let seasonYear, !seasonYear.isEmpty else { return nil }
+        return AnimeDateFormatter.format(rawDateString: seasonYear)
+    }
+
     // MARK: - State Manipulation Mechanics
 
     /// Sets the watch status and manages lifecycle timestamps per specification
@@ -145,3 +150,53 @@ public final class TrackedAnime {
         statusLastUpdatedAt = Date()
     }
 }
+
+public enum AnimeDateFormatter {
+    private static let monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+    public static func ordinalDay(_ day: Int) -> String {
+        switch day {
+        case 11, 12, 13: return "\(day)th"
+        default:
+            switch day % 10 {
+            case 1: return "\(day)st"
+            case 2: return "\(day)nd"
+            case 3: return "\(day)rd"
+            default: return "\(day)th"
+            }
+        }
+    }
+
+    public static func format(year: Int?, month: Int?, day: Int?) -> String? {
+        guard let year, year > 0 else { return nil }
+        guard let month, (1...12).contains(month) else {
+            return "\(year)"
+        }
+        let m = monthNames[month - 1]
+        guard let day, (1...31).contains(day) else {
+            return "\(m) \(year)"
+        }
+        return "\(ordinalDay(day)) \(m) \(year)"
+    }
+
+    public static func format(rawDateString: String?) -> String? {
+        guard let raw = rawDateString?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty, raw != "0000-00-00" else {
+            return nil
+        }
+        // If already formatted like "14th Aug 2026", return as is
+        if raw.contains("th") || raw.contains("st") || raw.contains("nd") || raw.contains("rd") {
+            return raw
+        }
+        // Check ISO / YYYY-MM-DD format: e.g. "2026-08-14" or "2026-08-14T..."
+        let parts = raw.prefix(10).split(separator: "-")
+        if parts.count == 3, let y = Int(parts[0]), let m = Int(parts[1]), let d = Int(parts[2]) {
+            return format(year: y, month: m, day: d)
+        } else if parts.count == 2, let y = Int(parts[0]), let m = Int(parts[1]) {
+            return format(year: y, month: m, day: nil)
+        } else if parts.count == 1, let y = Int(parts[0]) {
+            return format(year: y, month: nil, day: nil)
+        }
+        return raw
+    }
+}
+

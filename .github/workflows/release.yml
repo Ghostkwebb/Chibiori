@@ -32,9 +32,8 @@ jobs:
 
       - name: Create ZIP Archive for In-App Auto-Updater
         run: |
-          cd /Users/runner/work/Chibiori/Chibiori || cd "$GITHUB_WORKSPACE"
           ditto -c -k --keepParent "Chibiori.app" "Chibiori.zip"
-          ls -la Chibiori.zip
+          ls -lh Chibiori.zip
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

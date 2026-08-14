@@ -9,18 +9,26 @@ public struct AiringStatusBadge: View {
 
     public var body: some View {
         if let status {
-            HStack(spacing: 4) {
+            HStack(spacing: 4.5) {
                 Circle()
-                    .fill(status.badgeColor)
-                    .frame(width: 6, height: 6)
-                Text(status.displayName)
-                    .font(.system(size: 10, weight: .semibold))
+                    .fill(status.dotColor)
+                    .frame(width: 5.5, height: 5.5)
+                    .shadow(color: status.dotColor.opacity(0.85), radius: 3, x: 0, y: 0)
+
+                Text(status.shortDisplayName)
+                    .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
             }
             .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(status.badgeColor.opacity(0.15))
-            .foregroundStyle(status.badgeColor)
+            .padding(.vertical, 3.5)
+            .background(Color.black.opacity(0.78))
             .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .strokeBorder(status.dotColor.opacity(0.45), lineWidth: 0.8)
+            )
+            .shadow(color: Color.black.opacity(0.35), radius: 3, x: 0, y: 1.5)
         }
     }
 }

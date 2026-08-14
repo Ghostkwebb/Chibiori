@@ -103,11 +103,23 @@ public final class SmokeTestRunner {
             guard anime.currentEpisodeProgress == 2 else { throw NSError(domain: "Test", code: 22, userInfo: [NSLocalizedDescriptionKey: "Progress exceeded total episodes"]) }
         }
 
-        // Test 4: AiringStatus parsing
-        check("AiringStatus parser string variations") {
+        // Test 4: AiringStatus & AnimeDateFormatter parsing
+        check("AiringStatus parser string variations and AnimeDateFormatter") {
             guard AiringStatus.from(raw: "Currently Airing") == .currentlyAiring else { throw NSError(domain: "Test", code: 30, userInfo: [NSLocalizedDescriptionKey: "Failed currently airing parse"]) }
-            guard AiringStatus.from(raw: "Finished Airing") == .finishedAiring else { throw NSError(domain: "Test", code: 31, userInfo: [NSLocalizedDescriptionKey: "Failed finished airing parse"]) }
-            guard AiringStatus.from(raw: "Not Yet Aired") == .notYetAired else { throw NSError(domain: "Test", code: 32, userInfo: [NSLocalizedDescriptionKey: "Failed not yet aired parse"]) }
+            guard AiringStatus.from(raw: "RELEASING") == .currentlyAiring else { throw NSError(domain: "Test", code: 31, userInfo: [NSLocalizedDescriptionKey: "Failed RELEASING parse"]) }
+            guard AiringStatus.from(raw: "Finished Airing") == .finishedAiring else { throw NSError(domain: "Test", code: 32, userInfo: [NSLocalizedDescriptionKey: "Failed finished airing parse"]) }
+            guard AiringStatus.from(raw: "FINISHED") == .finishedAiring else { throw NSError(domain: "Test", code: 33, userInfo: [NSLocalizedDescriptionKey: "Failed FINISHED parse"]) }
+            guard AiringStatus.from(raw: "Not Yet Aired") == .notYetAired else { throw NSError(domain: "Test", code: 34, userInfo: [NSLocalizedDescriptionKey: "Failed not yet aired parse"]) }
+            guard AiringStatus.from(raw: "NOT_YET_RELEASED") == .notYetAired else { throw NSError(domain: "Test", code: 35, userInfo: [NSLocalizedDescriptionKey: "Failed NOT_YET_RELEASED parse"]) }
+            guard AiringStatus.from(raw: "1") == .currentlyAiring else { throw NSError(domain: "Test", code: 36, userInfo: [NSLocalizedDescriptionKey: "Failed 1 series_status parse"]) }
+
+            // Date formatting
+            guard AnimeDateFormatter.format(rawDateString: "2026-08-14") == "14th Aug 2026" else {
+                throw NSError(domain: "Test", code: 37, userInfo: [NSLocalizedDescriptionKey: "Failed 14th Aug 2026 date format"])
+            }
+            guard AnimeDateFormatter.format(year: 2026, month: 1, day: 1) == "1st Jan 2026" else {
+                throw NSError(domain: "Test", code: 38, userInfo: [NSLocalizedDescriptionKey: "Failed 1st Jan 2026 date format"])
+            }
         }
 
         // Test 5: JSON Backup Import/Export Round-Trip

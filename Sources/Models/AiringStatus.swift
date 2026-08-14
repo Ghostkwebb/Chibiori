@@ -12,6 +12,14 @@ public enum AiringStatus: String, CaseIterable, Codable, Identifiable, Sendable 
         rawValue
     }
 
+    public var shortDisplayName: String {
+        switch self {
+        case .currentlyAiring: return "Airing"
+        case .finishedAiring: return "Finished"
+        case .notYetAired: return "Upcoming"
+        }
+    }
+
     public var systemImage: String {
         switch self {
         case .currentlyAiring: return "antenna.radiowaves.left.and.right"
@@ -20,12 +28,16 @@ public enum AiringStatus: String, CaseIterable, Codable, Identifiable, Sendable 
         }
     }
 
-    public var badgeColor: Color {
+    public var dotColor: Color {
         switch self {
-        case .currentlyAiring: return .teal
-        case .finishedAiring: return .secondary
-        case .notYetAired: return .indigo
+        case .currentlyAiring: return Color(red: 0.2, green: 0.85, blue: 0.45) // Vibrant Green
+        case .finishedAiring: return Color(red: 0.65, green: 0.45, blue: 0.95) // Sleek Purple
+        case .notYetAired: return Color(red: 0.25, green: 0.75, blue: 1.0)   // Bright Cyan
         }
+    }
+
+    public var badgeColor: Color {
+        dotColor
     }
 
     public static func from(raw: String?) -> AiringStatus? {
@@ -33,11 +45,12 @@ public enum AiringStatus: String, CaseIterable, Codable, Identifiable, Sendable 
             return nil
         }
         let lower = raw.lowercased()
-        if lower.contains("currently") || lower.contains("airing") && !lower.contains("finished") && !lower.contains("not") {
+        // MAL XML status codes: 1 = Airing, 2 = Finished, 3 = Not Yet Aired
+        if lower == "1" || lower == "currently airing" || lower.contains("releasing") || (lower.contains("airing") && !lower.contains("finished") && !lower.contains("not")) {
             return .currentlyAiring
-        } else if lower.contains("finished") || lower.contains("complete") {
+        } else if lower == "2" || lower == "finished airing" || lower.contains("finished") || lower.contains("complete") || lower == "aired" {
             return .finishedAiring
-        } else if lower.contains("not yet") || lower.contains("upcoming") || lower.contains("to be aired") {
+        } else if lower == "3" || lower == "not yet aired" || lower.contains("not yet") || lower.contains("not_yet") || lower.contains("upcoming") || lower.contains("to be aired") || lower.contains("tba") || lower.contains("unreleased") {
             return .notYetAired
         }
         return AiringStatus(rawValue: raw)

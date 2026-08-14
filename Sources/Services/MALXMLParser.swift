@@ -8,6 +8,30 @@ public struct MALImportEntry: Sendable {
     public let totalEpisodes: Int?
     public let userRating: Int?
     public let personalNotes: String
+    public let airingStatusRaw: String?
+    public let seriesStart: String?
+
+    public init(
+        malID: Int,
+        title: String,
+        status: WatchStatus,
+        watchedEpisodes: Int,
+        totalEpisodes: Int? = nil,
+        userRating: Int? = nil,
+        personalNotes: String = "",
+        airingStatusRaw: String? = nil,
+        seriesStart: String? = nil
+    ) {
+        self.malID = malID
+        self.title = title
+        self.status = status
+        self.watchedEpisodes = watchedEpisodes
+        self.totalEpisodes = totalEpisodes
+        self.userRating = userRating
+        self.personalNotes = personalNotes
+        self.airingStatusRaw = airingStatusRaw
+        self.seriesStart = seriesStart
+    }
 }
 
 public final class MALXMLParser: NSObject, XMLParserDelegate {
@@ -23,6 +47,8 @@ public final class MALXMLParser: NSObject, XMLParserDelegate {
     private var currentTotalEpisodes: Int?
     private var currentScore: Int?
     private var currentComments: String = ""
+    private var currentSeriesStatus: String? = nil
+    private var currentSeriesStart: String? = nil
 
     public static func parse(data: Data, allowedStatuses: Set<WatchStatus>? = nil) -> [MALImportEntry] {
         let parser = MALXMLParser()
@@ -48,6 +74,8 @@ public final class MALXMLParser: NSObject, XMLParserDelegate {
             currentTotalEpisodes = nil
             currentScore = nil
             currentComments = ""
+            currentSeriesStatus = nil
+            currentSeriesStart = nil
         }
     }
 
@@ -73,6 +101,12 @@ public final class MALXMLParser: NSObject, XMLParserDelegate {
             if let eps = Int(trimmed), eps > 0 {
                 currentTotalEpisodes = eps
             }
+        case "series_status":
+            currentSeriesStatus = trimmed
+        case "series_start":
+            if !trimmed.isEmpty && trimmed != "0000-00-00" {
+                currentSeriesStart = AnimeDateFormatter.format(rawDateString: trimmed)
+            }
         case "my_watched_episodes":
             currentWatchedEpisodes = Int(trimmed) ?? 0
         case "my_score":
@@ -93,7 +127,9 @@ public final class MALXMLParser: NSObject, XMLParserDelegate {
                     watchedEpisodes: currentWatchedEpisodes,
                     totalEpisodes: currentTotalEpisodes,
                     userRating: currentScore,
-                    personalNotes: currentComments
+                    personalNotes: currentComments,
+                    airingStatusRaw: currentSeriesStatus,
+                    seriesStart: currentSeriesStart
                 )
                 entries.append(entry)
             }
