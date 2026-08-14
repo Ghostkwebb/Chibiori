@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AppKit
 
 public enum WatchStatus: String, CaseIterable, Codable, Identifiable, Sendable {
     case planToWatch = "planToWatch"
@@ -38,5 +39,24 @@ public enum WatchStatus: String, CaseIterable, Codable, Identifiable, Sendable {
         case .onHold: return .orange
         case .dropped: return .red
         }
+    }
+
+    public var nsColor: NSColor {
+        switch self {
+        case .planToWatch: return .systemBlue
+        case .watching: return .systemGreen
+        case .completed: return .systemPurple
+        case .onHold: return .systemOrange
+        case .dropped: return .systemRed
+        }
+    }
+
+    public var coloredMenuIcon: NSImage {
+        let config = NSImage.SymbolConfiguration(paletteColors: [self.nsColor])
+        if let base = NSImage(systemSymbolName: self.systemImage, accessibilityDescription: displayName)?.withSymbolConfiguration(config) {
+            base.isTemplate = false
+            return base
+        }
+        return NSImage()
     }
 }

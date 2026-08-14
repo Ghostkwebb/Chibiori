@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 public struct ColorCodedStatusPickerMenu: View {
     let currentStatus: WatchStatus?
@@ -22,10 +23,13 @@ public struct ColorCodedStatusPickerMenu: View {
                     Button {
                         onSelect(status)
                     } label: {
-                        if currentStatus == status {
-                            Label("\(status.displayName)  ✓", systemImage: status.systemImage)
-                        } else {
-                            Label(status.displayName, systemImage: status.systemImage)
+                        HStack(spacing: 6) {
+                            Image(nsImage: status.coloredMenuIcon)
+                            if currentStatus == status {
+                                Text("\(status.displayName)  ✓")
+                            } else {
+                                Text(status.displayName)
+                            }
                         }
                     }
                 }
