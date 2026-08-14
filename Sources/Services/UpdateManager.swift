@@ -202,13 +202,21 @@ public final class UpdateManager: NSObject {
         let scriptContent = """
         #!/bin/bash
         # Wait for current app instance to terminate
-        while kill -0 \(currentPID) 2>/dev/null; do
+        for i in {1..100}; do
+            if ! kill -0 \(currentPID) 2>/dev/null; then
+                break
+            fi
             sleep 0.1
         done
+
+        sleep 0.2
 
         # Replace old app bundle with new one
         rm -rf "\(targetAppURL.path)"
         mv "\(newAppURL.path)" "\(targetAppURL.path)"
+
+        # Strip quarantine
+        xattr -dr com.apple.quarantine "\(targetAppURL.path)" 2>/dev/null || true
 
         # Launch the new app
         open "\(targetAppURL.path)"
@@ -223,11 +231,13 @@ public final class UpdateManager: NSObject {
         chmodProcess.waitUntilExit()
 
         let launchProcess = Process()
-        launchProcess.executableURL = URL(fileURLWithPath: "/bin/bash")
+        launchProcess.executableURL = URL(fileURLWithPath: "/usr/bin/nohup")
         launchProcess.arguments = [helperScriptURL.path]
         try? launchProcess.run()
 
-        // Terminate current running instance immediately
-        NSApplication.shared.terminate(nil)
+        // Terminate process immediately so relaunch helper detects PID death and swaps the bundle
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            exit(0)
+        }
     }
 }
