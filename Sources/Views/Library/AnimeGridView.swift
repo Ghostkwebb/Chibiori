@@ -9,6 +9,7 @@ public struct AnimeGridView: View {
     @Binding var selectedAnimeID: PersistentIdentifier?
 
     @FocusState private var isFocused: Bool
+    @State private var availableWidth: CGFloat = 800
 
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: navState.gridCardSize, maximum: navState.gridCardSize * 1.3), spacing: 16)]
@@ -19,55 +20,64 @@ public struct AnimeGridView: View {
         self._selectedAnimeID = selectedAnimeID
     }
 
-    private var estimatedColumnsCount: Int {
-        let windowWidth = NSApp.keyWindow?.frame.width ?? 1200
-        let availableWidth = max(300, windowWidth - 340) // subtract sidebar and inspector
-        return max(1, Int(availableWidth / (navState.gridCardSize + 16)))
+    private var exactColumnsCount: Int {
+        let spacing: CGFloat = 16
+        let padding: CGFloat = 32 // 16 left + 16 right
+        let contentWidth = max(0, availableWidth - padding)
+        let minCardWidth = navState.gridCardSize
+        let count = Int((contentWidth + spacing) / (minCardWidth + spacing))
+        return max(1, count)
     }
 
     public var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(animes) { anime in
-                        AnimeCardView(
-                            anime: anime,
-                            isSelected: selectedAnimeID == anime.persistentModelID
-                        ) {
-                            isFocused = true
-                            selectedAnimeID = anime.persistentModelID
+        GeometryReader { geo in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(animes) { anime in
+                            AnimeCardView(
+                                anime: anime,
+                                isSelected: selectedAnimeID == anime.persistentModelID
+                            ) {
+                                isFocused = true
+                                selectedAnimeID = anime.persistentModelID
+                            }
+                            .equatable()
+                            .id(anime.persistentModelID)
                         }
-                        .equatable()
-                        .id(anime.persistentModelID)
                     }
+                    .padding(16)
                 }
-                .padding(16)
-            }
-            .smooth120HzScroll()
-            .focusable()
-            .focused($isFocused)
-            .focusEffectDisabled()
-            .onAppear {
-                isFocused = true
-            }
-            .onTapGesture {
-                isFocused = true
-            }
-            .onKeyPress(.rightArrow) {
-                selectDelta(1, proxy: proxy)
-                return .handled
-            }
-            .onKeyPress(.leftArrow) {
-                selectDelta(-1, proxy: proxy)
-                return .handled
-            }
-            .onKeyPress(.downArrow) {
-                selectDelta(estimatedColumnsCount, proxy: proxy)
-                return .handled
-            }
-            .onKeyPress(.upArrow) {
-                selectDelta(-estimatedColumnsCount, proxy: proxy)
-                return .handled
+                .smooth120HzScroll()
+                .focusable()
+                .focused($isFocused)
+                .focusEffectDisabled()
+                .onAppear {
+                    availableWidth = geo.size.width
+                    isFocused = true
+                }
+                .onChange(of: geo.size.width) { _, newWidth in
+                    availableWidth = newWidth
+                }
+                .onTapGesture {
+                    isFocused = true
+                }
+                .onKeyPress(.rightArrow) {
+                    selectDelta(1, proxy: proxy)
+                    return .handled
+                }
+                .onKeyPress(.leftArrow) {
+                    selectDelta(-1, proxy: proxy)
+                    return .handled
+                }
+                .onKeyPress(.downArrow) {
+                    selectDelta(exactColumnsCount, proxy: proxy)
+                    return .handled
+                }
+                .onKeyPress(.upArrow) {
+                    selectDelta(-exactColumnsCount, proxy: proxy)
+                    return .handled
+                }
             }
         }
     }

@@ -9,6 +9,7 @@ public struct DiscoverView: View {
     @Environment(NavigationState.self) private var navState
     @State private var viewModel = DiscoverViewModel()
     @FocusState private var isGridFocused: Bool
+    @State private var availableWidth: CGFloat = 800
 
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: navState.gridCardSize, maximum: navState.gridCardSize * 1.3), spacing: 16)]
@@ -16,10 +17,13 @@ public struct DiscoverView: View {
 
     public init() {}
 
-    private var estimatedColumnsCount: Int {
-        let windowWidth = NSApp.keyWindow?.frame.width ?? 1200
-        let availableWidth = max(300, windowWidth - 340)
-        return max(1, Int(availableWidth / (navState.gridCardSize + 16)))
+    private var exactColumnsCount: Int {
+        let spacing: CGFloat = 16
+        let padding: CGFloat = 32 // 16 left + 16 right
+        let contentWidth = max(0, availableWidth - padding)
+        let minCardWidth = navState.gridCardSize
+        let count = Int((contentWidth + spacing) / (minCardWidth + spacing))
+        return max(1, count)
     }
 
     @State private var trackedMap: [Int: TrackedAnime] = [:]
@@ -115,102 +119,108 @@ public struct DiscoverView: View {
                         .glassCard(cornerRadius: 20)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        ScrollViewReader { proxy in
-                            ScrollView {
-                                LazyVGrid(columns: columns, spacing: 16) {
-                                    ForEach(viewModel.results) { dto in
-                                        let isDTOSelected = state.selectedJikanDTO?.malId == dto.malId
-                                        let matchingTracked = trackedMap[dto.malId]
-                                        let isTrackedSelected = matchingTracked != nil && matchingTracked?.persistentModelID == state.selectedAnimeID
-                                        let isCardSelected = isDTOSelected || isTrackedSelected
+                        GeometryReader { geo in
+                            ScrollViewReader { proxy in
+                                ScrollView {
+                                    LazyVGrid(columns: columns, spacing: 16) {
+                                        ForEach(viewModel.results) { dto in
+                                            let isDTOSelected = state.selectedJikanDTO?.malId == dto.malId
+                                            let matchingTracked = trackedMap[dto.malId]
+                                            let isTrackedSelected = matchingTracked != nil && matchingTracked?.persistentModelID == state.selectedAnimeID
+                                            let isCardSelected = isDTOSelected || isTrackedSelected
 
-                                        DiscoverAnimeCard(
-                                            dto: dto,
-                                            existingTracked: matchingTracked,
-                                            isSelected: isCardSelected,
-                                            onSelect: {
-                                                isGridFocused = true
-                                                if let tracked = matchingTracked {
-                                                    state.selectTracked(tracked.persistentModelID)
-                                                } else {
-                                                    state.selectDTO(dto)
-                                                }
-                                            }
-                                        ) { status in
-                                            withAnimation(.spring(response: 0.3)) {
-                                                let anime = addAnimeToLibrary(dto: dto, status: status)
-                                                state.selectTracked(anime.persistentModelID)
-                                            }
-                                        }
-                                        .equatable()
-                                        .id(dto.malId)
-                                    }
-                                }
-                                .padding(16)
-
-                                // Show More Button / Footer
-                                if !viewModel.results.isEmpty {
-                                    VStack(spacing: 8) {
-                                        if viewModel.hasMorePages {
-                                            Button {
-                                                viewModel.loadMore()
-                                            } label: {
-                                                HStack(spacing: 8) {
-                                                    if viewModel.isLoadingMore {
-                                                        ProgressView()
-                                                            .scaleEffect(0.8)
-                                                        Text("Loading More Anime...")
-                                                            .font(.system(size: 12, weight: .bold))
+                                            DiscoverAnimeCard(
+                                                dto: dto,
+                                                existingTracked: matchingTracked,
+                                                isSelected: isCardSelected,
+                                                onSelect: {
+                                                    isGridFocused = true
+                                                    if let tracked = matchingTracked {
+                                                        state.selectTracked(tracked.persistentModelID)
                                                     } else {
-                                                        Image(systemName: "arrow.down.circle.fill")
-                                                            .font(.system(size: 14))
-                                                        Text("Show More Anime")
-                                                            .font(.system(size: 13, weight: .bold))
+                                                        state.selectDTO(dto)
                                                     }
                                                 }
-                                                .padding(.horizontal, 24)
-                                                .padding(.vertical, 10)
-                                                .glassPill(tint: .accentColor, isSelected: false)
-                                                .foregroundStyle(Color.white)
+                                            ) { status in
+                                                withAnimation(.spring(response: 0.3)) {
+                                                    let anime = addAnimeToLibrary(dto: dto, status: status)
+                                                    state.selectTracked(anime.persistentModelID)
+                                                }
                                             }
-                                            .buttonStyle(.plain)
-                                            .disabled(viewModel.isLoadingMore)
-                                        } else {
-                                            Text("You've reached the end of the results")
-                                                .font(.system(size: 11, weight: .medium))
-                                                .foregroundStyle(.tertiary)
-                                                .padding(.vertical, 8)
+                                            .equatable()
+                                            .id(dto.malId)
                                         }
                                     }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.bottom, 24)
+                                    .padding(16)
+
+                                    // Show More Button / Footer
+                                    if !viewModel.results.isEmpty {
+                                        VStack(spacing: 8) {
+                                            if viewModel.hasMorePages {
+                                                Button {
+                                                    viewModel.loadMore()
+                                                } label: {
+                                                    HStack(spacing: 8) {
+                                                        if viewModel.isLoadingMore {
+                                                            ProgressView()
+                                                                .scaleEffect(0.8)
+                                                            Text("Loading More Anime...")
+                                                                .font(.system(size: 12, weight: .bold))
+                                                        } else {
+                                                            Image(systemName: "arrow.down.circle.fill")
+                                                                .font(.system(size: 14))
+                                                            Text("Show More Anime")
+                                                                .font(.system(size: 13, weight: .bold))
+                                                        }
+                                                    }
+                                                    .padding(.horizontal, 24)
+                                                    .padding(.vertical, 10)
+                                                    .glassPill(tint: .accentColor, isSelected: false)
+                                                    .foregroundStyle(Color.white)
+                                                }
+                                                .buttonStyle(.plain)
+                                                .disabled(viewModel.isLoadingMore)
+                                            } else {
+                                                Text("You've reached the end of the results")
+                                                    .font(.system(size: 11, weight: .medium))
+                                                    .foregroundStyle(.tertiary)
+                                                    .padding(.vertical, 8)
+                                            }
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.bottom, 24)
+                                    }
                                 }
-                            }
-                            .smooth120HzScroll()
-                            .focusable()
-                            .focused($isGridFocused)
-                            .focusEffectDisabled()
-                            .onAppear {
-                                isGridFocused = true
-                            }
-                            .onTapGesture {
-                                isGridFocused = true
-                            }
-                            .onKeyPress(.rightArrow) {
-                                selectDelta(1, proxy: proxy, state: state)
-                                return .handled
-                            }
-                            .onKeyPress(.leftArrow) {
-                                selectDelta(-1, proxy: proxy, state: state)
-                                return .handled
-                            }
-                            .onKeyPress(.downArrow) {
-                                selectDelta(estimatedColumnsCount, proxy: proxy, state: state)
-                                return .handled
-                            }
-                            .onKeyPress(.upArrow) {
-                                selectDelta(-estimatedColumnsCount, proxy: proxy, state: state)
-                                return .handled
+                                .smooth120HzScroll()
+                                .focusable()
+                                .focused($isGridFocused)
+                                .focusEffectDisabled()
+                                .onAppear {
+                                    availableWidth = geo.size.width
+                                    isGridFocused = true
+                                }
+                                .onChange(of: geo.size.width) { _, newWidth in
+                                    availableWidth = newWidth
+                                }
+                                .onTapGesture {
+                                    isGridFocused = true
+                                }
+                                .onKeyPress(.rightArrow) {
+                                    selectDelta(1, proxy: proxy, state: state)
+                                    return .handled
+                                }
+                                .onKeyPress(.leftArrow) {
+                                    selectDelta(-1, proxy: proxy, state: state)
+                                    return .handled
+                                }
+                                .onKeyPress(.downArrow) {
+                                    selectDelta(exactColumnsCount, proxy: proxy, state: state)
+                                    return .handled
+                                }
+                                .onKeyPress(.upArrow) {
+                                    selectDelta(-exactColumnsCount, proxy: proxy, state: state)
+                                    return .handled
+                                }
                             }
                         }
                     }
