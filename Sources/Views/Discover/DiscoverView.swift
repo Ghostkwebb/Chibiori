@@ -273,6 +273,7 @@ public struct DiscoverView: View {
         return anime
     }
 
+    @MainActor
     private func selectDelta(_ delta: Int, proxy: ScrollViewProxy, state: NavigationState) {
         guard !viewModel.results.isEmpty else { return }
         let currentMalID = state.selectedJikanDTO?.malId ??

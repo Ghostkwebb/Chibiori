@@ -180,6 +180,7 @@ public struct WeeklyCalendarView: View {
         }
     }
 
+    @MainActor
     private func selectDelta(_ delta: Int, proxy: ScrollViewProxy, state: NavigationState) {
         guard !viewModel.schedules.isEmpty else { return }
         let currentIndex = viewModel.schedules.firstIndex(where: { dto in

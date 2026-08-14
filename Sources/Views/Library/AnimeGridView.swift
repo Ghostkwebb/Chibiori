@@ -70,6 +70,7 @@ public struct AnimeGridView: View {
         }
     }
 
+    @MainActor
     private func selectDelta(_ delta: Int, proxy: ScrollViewProxy) {
         guard !animes.isEmpty else { return }
         let currentIndex = animes.firstIndex(where: { $0.persistentModelID == selectedAnimeID }) ?? -1
