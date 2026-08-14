@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 
+@MainActor
 public struct SidebarView: View {
     @Binding var selection: SidebarSelection?
     @Query private var allAnime: [TrackedAnime]

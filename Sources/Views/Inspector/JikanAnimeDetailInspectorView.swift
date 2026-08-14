@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 
+@MainActor
 public struct JikanAnimeDetailInspectorView: View {
     @Environment(\.modelContext) private var modelContext
     let dto: JikanAnimeDTO

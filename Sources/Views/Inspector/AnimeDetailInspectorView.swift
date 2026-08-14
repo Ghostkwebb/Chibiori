@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 
+@MainActor
 public struct AnimeDetailInspectorView: View {
     @Bindable var anime: TrackedAnime
     let onDelete: () -> Void

@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 
+@MainActor
 public struct AnimeTableView: View {
     let animes: [TrackedAnime]
     @Binding var selectedAnimeID: PersistentIdentifier?

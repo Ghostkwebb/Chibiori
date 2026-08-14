@@ -25,6 +25,7 @@ public enum MALImportFilterOption: String, CaseIterable, Identifiable {
     }
 }
 
+@MainActor
 public struct BackupManagementView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var allAnime: [TrackedAnime]

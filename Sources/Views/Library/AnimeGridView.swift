@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import AppKit
 
+@MainActor
 public struct AnimeGridView: View {
     let animes: [TrackedAnime]
     @Binding var selectedAnimeID: PersistentIdentifier?
