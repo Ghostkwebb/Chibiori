@@ -310,6 +310,21 @@ public struct BackupManagementView: View {
                     .buttonStyle(.bordered)
                     .disabled(MetadataHydrationService.shared.isHydrating)
                 }
+
+                Button {
+                    Task {
+                        await MetadataHydrationService.shared.syncActiveAiringStatuses(context: modelContext, forceAll: true)
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                        Text("Sync Airing Statuses & Episodes")
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                }
+                .buttonStyle(.bordered)
+                .disabled(MetadataHydrationService.shared.isHydrating)
             }
 
             if MetadataHydrationService.shared.isHydrating {

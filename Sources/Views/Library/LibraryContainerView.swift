@@ -113,6 +113,10 @@ public struct LibraryContainerView: View {
             }
         }
         .navigationTitle(watchStatusFilter?.displayName ?? "All Anime")
+        .task {
+            await hydrationService.hydrateMissingMetadata(context: modelContext)
+            await hydrationService.syncActiveAiringStatuses(context: modelContext)
+        }
         .navigationSubtitle("\(filteredAnime.count) \(filteredAnime.count == 1 ? "anime" : "animes")")
         .searchable(
             text: $state.librarySearchQuery,
@@ -225,6 +229,17 @@ public struct LibraryContainerView: View {
                 }
                 .pickerStyle(.segmented)
                 .help("Toggle between Poster Grid and Compact Table")
+
+                // Refresh Active Library Airing Statuses & Metadata
+                Button {
+                    Task {
+                        await hydrationService.syncActiveAiringStatuses(context: modelContext, forceAll: true)
+                    }
+                } label: {
+                    Label("Refresh Library", systemImage: "arrow.clockwise")
+                }
+                .help("Refresh Airing Statuses & Episodes for All Active Anime")
+                .disabled(hydrationService.isHydrating)
 
                 // Inspector Toggle
                 Button {

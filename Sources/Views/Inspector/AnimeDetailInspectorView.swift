@@ -12,6 +12,7 @@ public struct AnimeDetailInspectorView: View {
     @State private var showCustomTitleEditor = false
     @State private var tempCustomTitle = ""
     @State private var isEditingNotes = false
+    @State private var isRefreshing = false
 
     private static let dateFormatter: DateFormatter = {
         let df = DateFormatter()
@@ -185,6 +186,26 @@ public struct AnimeDetailInspectorView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Edit custom title override")
+
+                    Button {
+                        Task {
+                            isRefreshing = true
+                            await MetadataHydrationService.shared.refreshAnimeMetadata(anime: anime, context: modelContext)
+                            isRefreshing = false
+                        }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 9))
+                            .rotationEffect(isRefreshing ? .degrees(360) : .degrees(0))
+                            .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                            .padding(4)
+                            .background(Color.purple.opacity(0.25))
+                            .clipShape(Circle())
+                            .foregroundStyle(.purple)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isRefreshing)
+                    .help("Refresh anime status, episode count, score & metadata")
                 }
                 .padding(.vertical, 2)
 
@@ -421,9 +442,34 @@ public struct AnimeDetailInspectorView: View {
     // MARK: - Metadata Section
     private var metadataSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("ANIME DETAILS")
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(.secondary)
+            HStack {
+                Text("ANIME DETAILS")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button {
+                    Task {
+                        isRefreshing = true
+                        await MetadataHydrationService.shared.refreshAnimeMetadata(anime: anime, context: modelContext)
+                        isRefreshing = false
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.clockwise")
+                            .rotationEffect(isRefreshing ? .degrees(360) : .degrees(0))
+                            .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                        Text(isRefreshing ? "Refreshing..." : "Refresh Details")
+                    }
+                    .font(.system(size: 10, weight: .medium))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .glassPill(tint: .purple, isSelected: false)
+                }
+                .buttonStyle(.plain)
+                .disabled(isRefreshing)
+            }
 
             VStack(spacing: 6) {
                 if let en = anime.englishTitle, !en.isEmpty {

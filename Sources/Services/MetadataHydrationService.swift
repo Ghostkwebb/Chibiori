@@ -110,6 +110,171 @@ public final class MetadataHydrationService {
         }
     }
 
+    /// Automatically checks all currently airing, upcoming, or uncompleted-count anime in your library to sync status changes (e.g. Airing -> Finished) and episode counts
+    public func syncActiveAiringStatuses(context: ModelContext, forceAll: Bool = false) async {
+        guard !isHydrating else { return }
+
+        let fetchDescriptor = FetchDescriptor<TrackedAnime>()
+        guard let allAnimes = try? context.fetch(fetchDescriptor) else { return }
+
+        // Filter anime that may have changed airing state:
+        // - AiringStatus is currently airing, upcoming/not yet aired, or unknown
+        // - Total episodes is unknown/nil or 0
+        // - Or currently in Watching / Plan to Watch list
+        let activeAnimes = allAnimes.filter { anime in
+            guard anime.malID > 0 else { return false }
+            if forceAll { return true }
+            let isNotFinished = anime.airingStatus != .finishedAiring
+            let hasUnknownEpisodes = (anime.totalEpisodes == nil || anime.totalEpisodes == 0)
+            let isWatchingOrPlan = (anime.watchStatus == .watching || anime.watchStatus == .planToWatch)
+            return isNotFinished || (isWatchingOrPlan && hasUnknownEpisodes)
+        }
+
+        guard !activeAnimes.isEmpty else { return }
+
+        isHydrating = true
+        statusMessage = "Checking airing statuses for \(activeAnimes.count) active anime..."
+
+        let chunkSize = 45
+        let chunks = stride(from: 0, to: activeAnimes.count, by: chunkSize).map {
+            Array(activeAnimes[$0..<min($0 + chunkSize, activeAnimes.count)])
+        }
+
+        for (index, chunk) in chunks.enumerated() {
+            let malIDs = chunk.map { $0.malID }
+            let metadataMap = await fetchBatchMetadata(for: malIDs)
+
+            for anime in chunk {
+                if let meta = metadataMap[anime.malID] {
+                    if let status = meta.airingStatusRaw, !status.isEmpty {
+                        // If AniList returns FINISHED, RELEASING, or NOT_YET_RELEASED, standardize it
+                        if status.uppercased() == "FINISHED" || status.lowercased().contains("finished") {
+                            anime.airingStatusRaw = "Finished Airing"
+                        } else if status.uppercased() == "RELEASING" || status.lowercased().contains("airing") {
+                            anime.airingStatusRaw = "Currently Airing"
+                        } else if status.uppercased() == "NOT_YET_RELEASED" || status.lowercased().contains("not") {
+                            anime.airingStatusRaw = "Not Yet Aired"
+                        } else {
+                            anime.airingStatusRaw = status
+                        }
+                    }
+
+                    if let eps = meta.episodes, eps > 0 {
+                        anime.totalEpisodes = eps
+                    }
+
+                    if let score = meta.score, score > 0 {
+                        anime.malScore = score
+                    }
+
+                    if let releaseDate = meta.seasonYear, !releaseDate.isEmpty {
+                        anime.seasonYear = releaseDate
+                    }
+
+                    if anime.englishTitle == nil, let en = meta.englishTitle, !en.isEmpty {
+                        anime.englishTitle = en
+                    }
+                    if anime.japaneseTitle == nil, let jp = meta.japaneseTitle, !jp.isEmpty {
+                        anime.japaneseTitle = jp
+                    }
+                    if anime.synopsis.isEmpty, let syn = meta.synopsis, !syn.isEmpty {
+                        anime.synopsis = syn
+                    }
+                }
+            }
+
+            try? context.save()
+
+            if index < chunks.count - 1 {
+                try? await Task.sleep(nanoseconds: 250_000_000)
+            }
+        }
+
+        isHydrating = false
+        statusMessage = nil
+    }
+
+    /// Refreshes all details for a single anime on-demand (e.g. from the Inspector sidebar)
+    public func refreshAnimeMetadata(anime: TrackedAnime, context: ModelContext) async {
+        guard anime.malID > 0 else { return }
+
+        let metadataMap = await fetchBatchMetadata(for: [anime.malID])
+        if let meta = metadataMap[anime.malID] {
+            if let status = meta.airingStatusRaw, !status.isEmpty {
+                if status.uppercased() == "FINISHED" || status.lowercased().contains("finished") {
+                    anime.airingStatusRaw = "Finished Airing"
+                } else if status.uppercased() == "RELEASING" || status.lowercased().contains("airing") {
+                    anime.airingStatusRaw = "Currently Airing"
+                } else if status.uppercased() == "NOT_YET_RELEASED" || status.lowercased().contains("not") {
+                    anime.airingStatusRaw = "Not Yet Aired"
+                } else {
+                    anime.airingStatusRaw = status
+                }
+            }
+
+            if let eps = meta.episodes, eps > 0 {
+                anime.totalEpisodes = eps
+            }
+
+            if let score = meta.score, score > 0 {
+                anime.malScore = score
+            }
+
+            if let releaseDate = meta.seasonYear, !releaseDate.isEmpty {
+                anime.seasonYear = releaseDate
+            }
+
+            if let syn = meta.synopsis, !syn.isEmpty {
+                anime.synopsis = syn
+            }
+
+            if let en = meta.englishTitle, !en.isEmpty {
+                anime.englishTitle = en
+            }
+
+            if let jp = meta.japaneseTitle, !jp.isEmpty {
+                anime.japaneseTitle = jp
+            }
+
+            if let cover = meta.coverURL, !cover.isEmpty {
+                anime.coverImageRemoteURL = cover
+            }
+
+            if !meta.genres.isEmpty {
+                anime.genres = meta.genres
+            }
+
+            try? context.save()
+            return
+        }
+
+        // Fallback to Jikan REST API if AniList GraphQL did not have it
+        if let dto = try? await JikanAPIService.shared.fetchAnimeDetails(id: anime.malID) {
+            if let status = dto.status, !status.isEmpty {
+                anime.airingStatusRaw = status
+            }
+            if let eps = dto.episodes, eps > 0 {
+                anime.totalEpisodes = eps
+            }
+            if let score = dto.score, score > 0 {
+                anime.malScore = score
+            }
+            if let syn = dto.synopsis, !syn.isEmpty {
+                anime.synopsis = syn
+            }
+            if let en = dto.titleEnglish, !en.isEmpty {
+                anime.englishTitle = en
+            }
+            if let jp = dto.titleJapanese, !jp.isEmpty {
+                anime.japaneseTitle = jp
+            }
+            if let genres = dto.genres, !genres.isEmpty {
+                anime.genres = genres.map { $0.name }
+            }
+            try? context.save()
+        }
+    }
+
     public static func stripHTMLTags(from string: String?) -> String? {
         guard let string, !string.isEmpty else { return nil }
         let cleaned = string
