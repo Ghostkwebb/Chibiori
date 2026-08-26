@@ -26,8 +26,61 @@
 
 <br />
 
+<div align="center">
+  <img src="docs/screenshots/library_grid.png" alt="Chibiori Main Library Interface" width="95%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);" />
+</div>
+
+<br />
+
 > [!IMPORTANT]
 > **System Requirements**: Requires a Mac running **macOS 14.0 (Sonoma)** or newer. Chibiori is a native universal binary supporting both **Apple Silicon (M1/M2/M3/M4)** and **Intel** Macs.
+
+---
+
+## Key Features
+
+### 1. Fluid Poster Grid & Dynamic Inspector
+Browse your collection with smooth 120Hz scrolling, adjustable poster sizing, and an interactive Inspector sidebar that presents high-resolution artwork, synopses, genres, custom notes, and score badges.
+
+<div align="center">
+  <img src="docs/screenshots/library_grid.png" alt="Poster Grid and Inspector Sidebar" width="92%" style="border-radius: 10px;" />
+</div>
+
+<br />
+
+### 2. Sequel & Season 2 Alerts
+Never miss an upcoming release. Chibiori scans your completed anime list in high-speed parallel batches (~1.5s) to detect newly announced seasons, movies, or spin-offs, allowing you to add them to your Plan to Watch list with one click.
+
+<div align="center">
+  <img src="docs/screenshots/sequel_alerts.png" alt="Sequel and Season 2 Alerts" width="92%" style="border-radius: 10px;" />
+</div>
+
+<br />
+
+### 3. Weekly Airing Calendar
+Stay up-to-date with currently airing simulcasts. The calendar organizes weekly broadcasts by day, showing countdown timers, episode numbers, and airing status pills.
+
+<div align="center">
+  <img src="docs/screenshots/weekly_calendar.png" alt="Weekly Airing Calendar" width="92%" style="border-radius: 10px;" />
+</div>
+
+<br />
+
+### 4. High-Density Compact Table View
+For large anime libraries, the compact table mode provides immediate access to watch status pickers, episode counters, MAL scores, and sorting options.
+
+<div align="center">
+  <img src="docs/screenshots/library_table.png" alt="Compact Table View" width="92%" style="border-radius: 10px;" />
+</div>
+
+<br />
+
+### 5. Global Search & Online Discovery
+Search millions of anime titles across MyAnimeList and AniList with instant debounced queries, rich metadata previews, and seamless library additions.
+
+<div align="center">
+  <img src="docs/screenshots/discover_search.png" alt="Search and Discover View" width="92%" style="border-radius: 10px;" />
+</div>
 
 ---
 
@@ -36,11 +89,9 @@
 *   **Fluid Glassmorphic UI**: Detached floating sidebar, specular glass borders, vibrant status pills, and adaptive dark mode tailored for macOS.
 *   **120Hz ProMotion Performance**: Multi-threaded CoreAnimation compositor rendering (`drawsAsynchronously`), zero-allocation viewport reuse, and instant keyboard grid navigation.
 *   **Multilingual Title Preferences**: Switch seamlessly between English, Romaji, and Native Japanese/Chinese titles across your entire collection, with custom title overrides for any anime.
+*   **Automatic Airing Status Sync**: Automatically checks your active and upcoming watchlist in lightweight background sweeps, updating airing badges and final episode counts when series finish broadcasting.
 *   **Offline-First SwiftData Engine**: All watch status records, personal ratings, custom notes, and poster artwork are saved locally on disk with zero telemetry or account requirements.
-*   **High-Speed Metadata Hydration**: Batch-fetches missing cover art, scores, synopses, and genres using concurrent AniList GraphQL queries (up to 50 titles per 100ms request).
-*   **Sequel & Announcement Detection**: Scans your completed anime list to automatically notify you when new seasons, movies, or sequels are officially announced.
-*   **Weekly Airing Schedule**: Displays currently airing anime organized by broadcast day with live countdown timers and release badges.
-*   **MyAnimeList (MAL) & JSON Vault**: Direct import from MAL XML backup files with status filtering, plus comprehensive JSON backup and private iCloud Drive synchronization.
+*   **Private iCloud Sync & Backup Vault**: Automatic background syncing to personal iCloud Drive containers (`Chibiori_AutoVault.json`), universal JSON backup exports, and full MAL XML file imports.
 *   **In-App Auto-Updates**: One-click check for updates powered directly by GitHub Releases.
 
 ---
@@ -54,32 +105,11 @@
 
 ---
 
-## Core Capabilities
-
-### Multilingual Title System
-Chibiori provides granular control over how anime titles appear in your library and search views:
-*   **English**: Prioritizes official localized English titles (with intelligent English synonym resolution for Chinese Donghua where standard API fields are empty).
-*   **Romaji**: Standard romanized transliteration (e.g. *Sousou no Frieren*, *Guimi Zhi Zhu*).
-*   **Native**: Original script (e.g. *葬送のフリーレン*, *诡秘之主*).
-*   **Custom Overrides**: Set a custom name for any title directly in the Inspector panel.
-
-### High-Performance Poster Grid & Table Views
-*   **Poster Grid**: Interactive poster gallery with air status badges, score pills, and real-time hover elevation.
-*   **Compact Table**: High-density data grid featuring status picker menus, progress counters, and sortable columns.
-*   **Full Keyboard Traversal**: Navigate your grid with `Arrow Keys`, inspect with `Enter`, increment episodes with `Spacebar`, and re-queue items with `Cmd + Backspace`.
-
-### Private iCloud Sync & Backup Vault
-*   **iCloud Vault**: Automatically mirrors your library database to your personal iCloud Drive container (`Chibiori_AutoVault.json`) across your Mac devices.
-*   **Universal JSON Export**: Full round-trip JSON serialization conforming to the Chibiori Backup Specification.
-*   **MAL XML Importer**: Easily migrate an existing anime list from MyAnimeList with selectable import modes (*Completed Only, Watching Only, Plan to Watch, All*).
-
----
-
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
 | :--- | :--- |
-| `↑` `↓` `←` `→` | Navigate anime cards in Poster Grid |
+| `↑` `↓` `←` `→` | Navigate anime cards in Poster Grid & Sequel Alerts |
 | `Return` / `Enter` | Select anime and open Inspector |
 | `Space` | Increment current episode progress (+1) |
 | `⌘` + `Backspace` | Re-queue anime to top of Plan to Watch |
