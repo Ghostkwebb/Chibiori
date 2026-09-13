@@ -47,7 +47,9 @@ public struct AnimeGridView: View {
                         }
                     }
                     .padding(16)
+                    .frame(maxWidth: .infinity)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .smooth120HzScroll()
                 .focusable()
                 .focused($isFocused)

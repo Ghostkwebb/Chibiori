@@ -51,7 +51,7 @@ struct ChibioriApp: App {
                 .environment(navState)
                 .modelContainer(container)
                 .background(WindowAccessor())
-                .frame(minWidth: 900, minHeight: 600)
+                .frame(minWidth: 900, maxWidth: .infinity, minHeight: 600, maxHeight: .infinity)
         }
         .windowToolbarStyle(.unified)
         .defaultSize(width: 1200, height: 800)
@@ -259,6 +259,7 @@ struct MainContentView: View {
                 .inspectorColumnWidth(min: 280, ideal: state.inspectorWidth, max: 480)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             _ = CloudSyncService.shared.autoRestoreIfLibraryEmpty(context: modelContext)
             CloudSyncService.shared.performAutoCloudBackup(from: allAnime)

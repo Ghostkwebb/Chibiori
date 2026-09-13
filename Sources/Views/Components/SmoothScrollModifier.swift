@@ -32,13 +32,11 @@ private struct SmoothScrollIntrospector: NSViewRepresentable {
     private func configureScrollView(_ scrollView: NSScrollView) {
         scrollView.drawsBackground = false
         scrollView.wantsLayer = true
-        scrollView.layer?.drawsAsynchronously = true
-        scrollView.layerContentsRedrawPolicy = .onSetNeedsDisplay
+        scrollView.layerContentsRedrawPolicy = .duringViewResize
 
         // ClipView (Viewport) GPU acceleration & hardware blitting
         scrollView.contentView.wantsLayer = true
-        scrollView.contentView.layer?.drawsAsynchronously = true
-        scrollView.contentView.layerContentsRedrawPolicy = .onSetNeedsDisplay
+        scrollView.contentView.layerContentsRedrawPolicy = .duringViewResize
 
         // Native macOS momentum physics & axis locking
         scrollView.usesPredominantAxisScrolling = true

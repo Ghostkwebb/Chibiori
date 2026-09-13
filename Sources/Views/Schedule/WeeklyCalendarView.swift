@@ -133,7 +133,9 @@ public struct WeeklyCalendarView: View {
                                     }
                                 }
                                 .padding(16)
+                                .frame(maxWidth: .infinity)
                             }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .smooth120HzScroll()
                             .focusable()
                             .focused($isGridFocused)

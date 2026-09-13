@@ -191,6 +191,7 @@ public struct DiscoverView: View {
                                         .padding(.bottom, 24)
                                     }
                                 }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .smooth120HzScroll()
                                 .focusable()
                                 .focused($isGridFocused)

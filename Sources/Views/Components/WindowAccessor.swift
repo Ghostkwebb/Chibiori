@@ -29,9 +29,9 @@ private final class WindowObservingView: NSView {
 
         if let contentView = window.contentView {
             contentView.wantsLayer = true
-            contentView.layerContentsRedrawPolicy = .onSetNeedsDisplay
-            contentView.layer?.drawsAsynchronously = true
+            contentView.layerContentsRedrawPolicy = .duringViewResize
         }
+        self.autoresizingMask = [.width, .height]
 
         if eventMonitor == nil {
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak window] event in
