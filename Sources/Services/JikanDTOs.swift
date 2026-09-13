@@ -63,6 +63,7 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
     public let rating: String?
     public let duration: String?
     public let bannerImageURL: String?
+    public let aired: JikanAiredDTO?
 
     enum CodingKeys: String, CodingKey {
         case malId = "mal_id"
@@ -83,6 +84,7 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
         case rating
         case duration
         case bannerImageURL = "banner_image_url"
+        case aired
     }
 
     public init(
@@ -103,7 +105,8 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
         studios: [JikanNamedEntityDTO]? = nil,
         rating: String? = nil,
         duration: String? = nil,
-        bannerImageURL: String? = nil
+        bannerImageURL: String? = nil,
+        aired: JikanAiredDTO? = nil
     ) {
         self.malId = malId
         self.title = title
@@ -123,6 +126,7 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
         self.rating = rating
         self.duration = duration
         self.bannerImageURL = bannerImageURL
+        self.aired = aired
     }
 
     public var coverImageURL: String {
@@ -141,6 +145,26 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
         studios?.compactMap { $0.name } ?? []
     }
 
+    public var startDateFormatted: String? {
+        if let y = aired?.prop?.from?.year {
+            return AnimeDateFormatter.format(year: y, month: aired?.prop?.from?.month, day: aired?.prop?.from?.day)
+        }
+        if let from = aired?.from {
+            return AnimeDateFormatter.format(rawDateString: from)
+        }
+        return nil
+    }
+
+    public var airingEndDateFormatted: String? {
+        if let y = aired?.prop?.to?.year {
+            return AnimeDateFormatter.format(year: y, month: aired?.prop?.to?.month, day: aired?.prop?.to?.day)
+        }
+        if let to = aired?.to {
+            return AnimeDateFormatter.format(rawDateString: to)
+        }
+        return nil
+    }
+
     public var seasonYearFormatted: String? {
         if let season = season?.capitalized, let year = year {
             return "\(season) \(year)"
@@ -148,6 +172,47 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
             return "\(year)"
         }
         return nil
+    }
+
+    public var airingDatesDisplay: String? {
+        let start = startDateFormatted ?? seasonYearFormatted
+        let end = airingEndDateFormatted
+        let airing = AiringStatus.from(raw: status)
+
+        switch airing {
+        case .finishedAiring:
+            if let start, let end {
+                if start == end {
+                    return start
+                } else {
+                    return "\(start) – \(end)"
+                }
+            } else if let end {
+                return "Finished: \(end)"
+            } else {
+                return start
+            }
+
+        case .currentlyAiring:
+            if let start {
+                return "\(start) – Present"
+            } else {
+                return "Currently Airing"
+            }
+
+        case .notYetAired:
+            if let start {
+                return start
+            } else {
+                return "Upcoming"
+            }
+
+        case nil:
+            if let start, let end, start != end {
+                return "\(start) – \(end)"
+            }
+            return start ?? end
+        }
     }
 
     public func displayTitle(for preference: TitleLanguagePreference = .english) -> String {
@@ -271,5 +336,41 @@ extension Array where Element == JikanAnimeDTO {
             seen.insert(anime.malId)
             return true
         }
+    }
+}
+
+public struct JikanAiredDTO: Codable, Sendable {
+    public let from: String?
+    public let to: String?
+    public let prop: JikanAiredPropDTO?
+    public let string: String?
+
+    public init(from: String? = nil, to: String? = nil, prop: JikanAiredPropDTO? = nil, string: String? = nil) {
+        self.from = from
+        self.to = to
+        self.prop = prop
+        self.string = string
+    }
+}
+
+public struct JikanAiredPropDTO: Codable, Sendable {
+    public let from: JikanDatePropDTO?
+    public let to: JikanDatePropDTO?
+
+    public init(from: JikanDatePropDTO? = nil, to: JikanDatePropDTO? = nil) {
+        self.from = from
+        self.to = to
+    }
+}
+
+public struct JikanDatePropDTO: Codable, Sendable {
+    public let day: Int?
+    public let month: Int?
+    public let year: Int?
+
+    public init(day: Int? = nil, month: Int? = nil, year: Int? = nil) {
+        self.day = day
+        self.month = month
+        self.year = year
     }
 }

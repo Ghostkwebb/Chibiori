@@ -34,7 +34,8 @@ public final class MetadataHydrationService {
             $0.airingStatus == nil ||
             $0.totalEpisodes == nil ||
             $0.englishTitle == nil ||
-            $0.japaneseTitle == nil
+            $0.japaneseTitle == nil ||
+            ($0.airingStatus == .finishedAiring && $0.airingEndDate == nil)
         }
         guard !missingAnimes.isEmpty else { return }
 
@@ -76,6 +77,9 @@ public final class MetadataHydrationService {
                     }
                     if let releaseDate = meta.seasonYear, !releaseDate.isEmpty {
                         anime.seasonYear = releaseDate
+                    }
+                    if let endDate = meta.airingEndDate, !endDate.isEmpty {
+                        anime.airingEndDate = endDate
                     }
                     if anime.totalEpisodes == nil, let eps = meta.episodes, eps > 0 {
                         anime.totalEpisodes = eps
@@ -171,6 +175,10 @@ public final class MetadataHydrationService {
                         anime.seasonYear = releaseDate
                     }
 
+                    if let endDate = meta.airingEndDate, !endDate.isEmpty {
+                        anime.airingEndDate = endDate
+                    }
+
                     if anime.englishTitle == nil, let en = meta.englishTitle, !en.isEmpty {
                         anime.englishTitle = en
                     }
@@ -224,6 +232,10 @@ public final class MetadataHydrationService {
                 anime.seasonYear = releaseDate
             }
 
+            if let endDate = meta.airingEndDate, !endDate.isEmpty {
+                anime.airingEndDate = endDate
+            }
+
             if let syn = meta.synopsis, !syn.isEmpty {
                 anime.synopsis = syn
             }
@@ -268,6 +280,12 @@ public final class MetadataHydrationService {
             if let jp = dto.titleJapanese, !jp.isEmpty {
                 anime.japaneseTitle = jp
             }
+            if let release = dto.startDateFormatted, !release.isEmpty {
+                anime.seasonYear = release
+            }
+            if let endDate = dto.airingEndDateFormatted, !endDate.isEmpty {
+                anime.airingEndDate = endDate
+            }
             if let genres = dto.genres, !genres.isEmpty {
                 anime.genres = genres.map { $0.name }
             }
@@ -299,6 +317,7 @@ public final class MetadataHydrationService {
         let score: Double?
         let airingStatusRaw: String?
         let seasonYear: String?
+        let airingEndDate: String?
         let episodes: Int?
         let genres: [String]
     }
@@ -387,6 +406,13 @@ public final class MetadataHydrationService {
 
                 let formattedDate = AnimeDateFormatter.format(year: startYear, month: startMonth, day: startDay)
 
+                let endObj = item["endDate"] as? [String: Any]
+                let endYear = endObj?["year"] as? Int
+                let endMonth = endObj?["month"] as? Int
+                let endDay = endObj?["day"] as? Int
+
+                let formattedEndDate = AnimeDateFormatter.format(year: endYear, month: endMonth, day: endDay)
+
                 let season = item["season"] as? String
                 let year = item["seasonYear"] as? Int
                 var fallbackDate: String? = nil
@@ -410,6 +436,7 @@ public final class MetadataHydrationService {
                     score: avgScore > 0 ? avgScore : nil,
                     airingStatusRaw: rawStatus,
                     seasonYear: finalReleaseDate,
+                    airingEndDate: formattedEndDate,
                     episodes: eps,
                     genres: genres
                 )

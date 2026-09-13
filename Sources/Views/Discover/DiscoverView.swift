@@ -263,7 +263,8 @@ public struct DiscoverView: View {
             broadcastDayRaw: dto.broadcast?.day,
             broadcastTimeUTC: dto.broadcast?.time,
             malScore: dto.score,
-            seasonYear: dto.seasonYearFormatted,
+            seasonYear: dto.startDateFormatted ?? dto.seasonYearFormatted,
+            airingEndDate: dto.airingEndDateFormatted,
             genres: dto.genreNames
         )
         anime.setWatchStatus(status)

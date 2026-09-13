@@ -8,6 +8,8 @@ public struct JikanAnimeDetailInspectorView: View {
     let dto: JikanAnimeDTO
     let onAddedToLibrary: (TrackedAnime) -> Void
 
+    @State private var relatedAnime: [RelatedAnimeItem] = []
+
     public init(dto: JikanAnimeDTO, onAddedToLibrary: @escaping (TrackedAnime) -> Void) {
         self.dto = dto
         self.onAddedToLibrary = onAddedToLibrary
@@ -18,6 +20,13 @@ public struct JikanAnimeDetailInspectorView: View {
             VStack(alignment: .leading, spacing: 14) {
                 // Large Poster & Info Showcase Header
                 headerSection
+
+                // Related Seasons (Prequels / Sequels)
+                if !relatedAnime.isEmpty {
+                    RelatedSeasonsCardView(relatedAnime: relatedAnime)
+                        .padding(14)
+                        .glassCard(cornerRadius: 14)
+                }
 
                 // Track Anime Action Card
                 trackActionSection
@@ -39,6 +48,9 @@ public struct JikanAnimeDetailInspectorView: View {
             .padding(12)
         }
         .frame(minWidth: 300, idealWidth: 350, maxWidth: 440)
+        .task(id: dto.malId) {
+            relatedAnime = await AnimeRelationsService.shared.fetchRelations(for: dto.malId)
+        }
     }
 
     // MARK: - Header & Large Poster Section
@@ -112,12 +124,14 @@ public struct JikanAnimeDetailInspectorView: View {
                 }
                 .padding(.top, 2)
 
-                if let seasonYear = dto.seasonYearFormatted {
-                    HStack(spacing: 4) {
+                if let dates = dto.airingDatesDisplay {
+                    HStack(alignment: .top, spacing: 4) {
                         Image(systemName: "calendar")
                             .font(.system(size: 10))
-                        Text(seasonYear)
+                            .padding(.top, 1)
+                        Text(dates)
                             .font(.system(size: 11, weight: .medium))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .foregroundStyle(.secondary)
                 }
@@ -158,7 +172,12 @@ public struct JikanAnimeDetailInspectorView: View {
                         englishTitle: dto.titleEnglish,
                         japaneseTitle: dto.titleJapanese,
                         totalEpisodes: dto.episodes,
-                        broadcastDayRaw: dto.broadcast?.day
+                        broadcastDayRaw: dto.broadcast?.day,
+                        broadcastTimeUTC: dto.broadcast?.time,
+                        malScore: dto.score,
+                        seasonYear: dto.startDateFormatted ?? dto.seasonYearFormatted,
+                        airingEndDate: dto.airingEndDateFormatted,
+                        genres: dto.genreNames
                     )
                     anime.watchStatus = status
                     modelContext.insert(anime)
@@ -192,6 +211,12 @@ public struct JikanAnimeDetailInspectorView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 6) {
+                if let release = dto.startDateFormatted ?? dto.seasonYearFormatted {
+                    metadataRow(label: "Release Date", value: release)
+                }
+                if let ended = dto.airingEndDateFormatted, AiringStatus.from(raw: dto.status) == .finishedAiring {
+                    metadataRow(label: "Ended", value: ended)
+                }
                 if let episodes = dto.episodes {
                     metadataRow(label: "Total Episodes", value: "\(episodes)")
                 }

@@ -120,6 +120,72 @@ public final class SmokeTestRunner {
             guard AnimeDateFormatter.format(year: 2026, month: 1, day: 1) == "1st Jan 2026" else {
                 throw NSError(domain: "Test", code: 38, userInfo: [NSLocalizedDescriptionKey: "Failed 1st Jan 2026 date format"])
             }
+
+            // Test airingDatesDisplay across different airing statuses
+            // 1. Finished Airing with start and end dates
+            let finishedAnime = TrackedAnime(
+                malID: 63508,
+                title: "From Overshadowed to Overpowered",
+                synopsis: "Sage rebirth",
+                coverImageRemoteURL: "",
+                airingStatusRaw: "Finished Airing",
+                seasonYear: "2026-06-26",
+                airingEndDate: "2026-09-11"
+            )
+            guard finishedAnime.airingDatesDisplay == "26th Jun 2026 – 11th Sep 2026" else {
+                throw NSError(domain: "Test", code: 39, userInfo: [NSLocalizedDescriptionKey: "Finished airing date range mismatch: \(finishedAnime.airingDatesDisplay ?? "nil")"])
+            }
+
+            // 2. Finished Airing single-day release (same start and end)
+            let movieAnime = TrackedAnime(
+                malID: 9999,
+                title: "Anime Movie",
+                synopsis: "Film",
+                coverImageRemoteURL: "",
+                airingStatusRaw: "Finished Airing",
+                seasonYear: "2026-06-26",
+                airingEndDate: "2026-06-26"
+            )
+            guard movieAnime.airingDatesDisplay == "26th Jun 2026" else {
+                throw NSError(domain: "Test", code: 40, userInfo: [NSLocalizedDescriptionKey: "Single-day finished release should not repeat date: \(movieAnime.airingDatesDisplay ?? "nil")"])
+            }
+
+            // 3. Currently Airing (shows start date – Present)
+            let airingAnime = TrackedAnime(
+                malID: 10001,
+                title: "Ongoing Show",
+                synopsis: "Ongoing",
+                coverImageRemoteURL: "",
+                airingStatusRaw: "Currently Airing",
+                seasonYear: "2026-06-26"
+            )
+            guard airingAnime.airingDatesDisplay == "26th Jun 2026 – Present" else {
+                throw NSError(domain: "Test", code: 41, userInfo: [NSLocalizedDescriptionKey: "Currently airing show date format mismatch: \(airingAnime.airingDatesDisplay ?? "nil")"])
+            }
+
+            // 4. Not Yet Aired (shows scheduled release date without end date)
+            let upcomingAnime = TrackedAnime(
+                malID: 10002,
+                title: "Upcoming Show",
+                synopsis: "Upcoming",
+                coverImageRemoteURL: "",
+                airingStatusRaw: "Not Yet Aired",
+                seasonYear: "2026-10-01"
+            )
+            guard upcomingAnime.airingDatesDisplay == "1st Oct 2026" else {
+                throw NSError(domain: "Test", code: 42, userInfo: [NSLocalizedDescriptionKey: "Upcoming show date format mismatch: \(upcomingAnime.airingDatesDisplay ?? "nil")"])
+            }
+
+            let upcomingNoDate = TrackedAnime(
+                malID: 10003,
+                title: "TBA Show",
+                synopsis: "TBA",
+                coverImageRemoteURL: "",
+                airingStatusRaw: "Not Yet Aired"
+            )
+            guard upcomingNoDate.airingDatesDisplay == "Upcoming" else {
+                throw NSError(domain: "Test", code: 43, userInfo: [NSLocalizedDescriptionKey: "Upcoming show without date should return Upcoming: \(upcomingNoDate.airingDatesDisplay ?? "nil")"])
+            }
         }
 
         // Test 5: JSON Backup Import/Export Round-Trip
@@ -141,6 +207,8 @@ public final class SmokeTestRunner {
                   "dateStarted": "2026-01-11T12:00:00Z",
                   "dateCompleted": "2026-01-25T18:30:00Z",
                   "airingStatus": "Finished Airing",
+                  "seasonYear": "2009-04-05",
+                  "airingEndDate": "2010-07-04",
                   "totalEpisodes": 64,
                   "malScore": 9.1,
                   "coverImageRemoteURL": "https://cdn.myanimelist.net/images/anime/1208/94745.jpg"
@@ -162,14 +230,14 @@ public final class SmokeTestRunner {
             guard items.count == 1 else { throw NSError(domain: "Test", code: 42, userInfo: [NSLocalizedDescriptionKey: "Fetched count mismatch"]) }
 
             let anime = items[0]
-            guard anime.malID == 5114 && anime.watchStatus == .completed && anime.userRating == 10 && anime.currentEpisodeProgress == 64 else {
+            guard anime.malID == 5114 && anime.watchStatus == .completed && anime.userRating == 10 && anime.currentEpisodeProgress == 64 && anime.airingEndDate == "2010-07-04" else {
                 throw NSError(domain: "Test", code: 43, userInfo: [NSLocalizedDescriptionKey: "Imported anime field values mismatch"])
             }
 
             // Export test
             let exportedData = try BackupService.shared.generateExportData(from: items)
             let decodedRoot = try JSONDecoder().decode(AnimeBackupRoot.self, from: exportedData)
-            guard decodedRoot.records.count == 1 && decodedRoot.records[0].malID == 5114 && decodedRoot.records[0].title == "Fullmetal Alchemist: Brotherhood" else {
+            guard decodedRoot.records.count == 1 && decodedRoot.records[0].malID == 5114 && decodedRoot.records[0].airingEndDate == "2010-07-04" else {
                 throw NSError(domain: "Test", code: 44, userInfo: [NSLocalizedDescriptionKey: "Exported JSON structure mismatch"])
             }
         }
@@ -199,6 +267,8 @@ public final class SmokeTestRunner {
                     <series_title>Fullmetal Alchemist: Brotherhood</series_title>
                     <series_type>1</series_type>
                     <series_episodes>64</series_episodes>
+                    <series_start>2009-04-05</series_start>
+                    <series_end>2010-07-04</series_end>
                     <my_id>0</my_id>
                     <my_watched_episodes>64</my_watched_episodes>
                     <my_score>10</my_score>
@@ -236,8 +306,8 @@ public final class SmokeTestRunner {
             guard completedOnly.count == 1 else {
                 throw NSError(domain: "Test", code: 61, userInfo: [NSLocalizedDescriptionKey: "Completed only filter should return exactly 1 item, got \(completedOnly.count)"])
             }
-            guard completedOnly[0].malID == 5114 && completedOnly[0].status == .completed && completedOnly[0].userRating == 10 else {
-                throw NSError(domain: "Test", code: 62, userInfo: [NSLocalizedDescriptionKey: "Completed item field mismatch"])
+            guard completedOnly[0].malID == 5114 && completedOnly[0].status == .completed && completedOnly[0].userRating == 10 && completedOnly[0].seriesStart == "5th Apr 2009" && completedOnly[0].seriesEnd == "4th Jul 2010" else {
+                throw NSError(domain: "Test", code: 62, userInfo: [NSLocalizedDescriptionKey: "Completed item field mismatch or series_end parsing failed"])
             }
 
             // Test all statuses
@@ -461,6 +531,117 @@ public final class SmokeTestRunner {
                   SidebarSelection.from(id: "backup") == .backup,
                   SidebarSelection.from(id: "status_planToWatch") == .watchStatus(.planToWatch) else {
                 throw NSError(domain: "Test", code: 136, userInfo: [NSLocalizedDescriptionKey: "SidebarSelection.from(id:) failed"])
+            }
+        }
+
+        // Test 15: RelatedAnimeItem properties, priority ranking, and DTO conversion
+        check("RelatedAnimeItem properties, priority ranking, and DTO conversion") {
+            let prequel = RelatedAnimeItem(
+                malID: 40748,
+                relationType: "PREQUEL",
+                title: "Jujutsu Kaisen",
+                englishTitle: "JUJUTSU KAISEN",
+                japaneseTitle: "呪術廻戦",
+                coverImageURL: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx113415-LHBAeoZDIsnF.jpg",
+                format: "TV",
+                status: "FINISHED",
+                episodes: 24,
+                season: "FALL",
+                seasonYear: 2020
+            )
+
+            let sequel = RelatedAnimeItem(
+                malID: 57658,
+                relationType: "SEQUEL",
+                title: "Jujutsu Kaisen: Shimetsu Kaiyuu",
+                englishTitle: "JUJUTSU KAISEN: Culling Game",
+                japaneseTitle: "呪術廻戦 死滅回游",
+                coverImageURL: "https://example.com/cover.jpg",
+                format: "TV",
+                status: "NOT_YET_RELEASED",
+                episodes: nil,
+                season: nil,
+                seasonYear: 2026
+            )
+
+            guard prequel.priorityRank < sequel.priorityRank else {
+                throw NSError(domain: "Test", code: 140, userInfo: [NSLocalizedDescriptionKey: "Prequels must have higher priority rank than sequels"])
+            }
+            guard prequel.relationDisplayName == "Prequel" else {
+                throw NSError(domain: "Test", code: 141, userInfo: [NSLocalizedDescriptionKey: "Prequel display name failed: \(prequel.relationDisplayName)"])
+            }
+            guard sequel.relationDisplayName == "Sequel" else {
+                throw NSError(domain: "Test", code: 142, userInfo: [NSLocalizedDescriptionKey: "Sequel display name failed: \(sequel.relationDisplayName)"])
+            }
+
+            // Language resolution
+            guard prequel.displayTitle(for: .english) == "JUJUTSU KAISEN" else {
+                throw NSError(domain: "Test", code: 143, userInfo: [NSLocalizedDescriptionKey: "English title resolution failed"])
+            }
+            guard prequel.displayTitle(for: .romaji) == "Jujutsu Kaisen" else {
+                throw NSError(domain: "Test", code: 144, userInfo: [NSLocalizedDescriptionKey: "Romaji title resolution failed"])
+            }
+            guard prequel.displayTitle(for: .native) == "呪術廻戦" else {
+                throw NSError(domain: "Test", code: 145, userInfo: [NSLocalizedDescriptionKey: "Native title resolution failed"])
+            }
+
+            // Subtitle metadata
+            guard prequel.metadataSubtitle.contains("24 eps") && prequel.metadataSubtitle.contains("2020") else {
+                throw NSError(domain: "Test", code: 146, userInfo: [NSLocalizedDescriptionKey: "Metadata subtitle failed: \(prequel.metadataSubtitle)"])
+            }
+
+            // DTO conversion
+            let dto = prequel.asJikanDTO
+            guard dto.malId == 40748 && dto.titleEnglish == "JUJUTSU KAISEN" && dto.episodes == 24 else {
+                throw NSError(domain: "Test", code: 147, userInfo: [NSLocalizedDescriptionKey: "asJikanDTO conversion failed"])
+            }
+            guard dto.status == "Finished Airing" else {
+                throw NSError(domain: "Test", code: 148, userInfo: [NSLocalizedDescriptionKey: "DTO status mapping failed: \(String(describing: dto.status))"])
+            }
+            guard dto.seasonYearFormatted == "Fall 2020" else {
+                throw NSError(domain: "Test", code: 149, userInfo: [NSLocalizedDescriptionKey: "DTO seasonYearFormatted failed"])
+            }
+            guard dto.airingDatesDisplay == "Fall 2020" else {
+                throw NSError(domain: "Test", code: 150, userInfo: [NSLocalizedDescriptionKey: "DTO airingDatesDisplay failed"])
+            }
+
+            // Test sequel without aired object (guards against circular recursion stack overflow)
+            let sequelDTO = sequel.asJikanDTO
+            guard sequelDTO.seasonYearFormatted == "2026" else {
+                throw NSError(domain: "Test", code: 151, userInfo: [NSLocalizedDescriptionKey: "Sequel DTO seasonYearFormatted failed"])
+            }
+            guard sequelDTO.startDateFormatted == nil else {
+                throw NSError(domain: "Test", code: 152, userInfo: [NSLocalizedDescriptionKey: "Sequel DTO startDateFormatted should be nil when aired is nil"])
+            }
+            guard sequelDTO.airingDatesDisplay == "2026" else {
+                throw NSError(domain: "Test", code: 153, userInfo: [NSLocalizedDescriptionKey: "Sequel DTO airingDatesDisplay failed: \(String(describing: sequelDTO.airingDatesDisplay))"])
+            }
+        }
+
+        // Test 16: AnimeRelationsService cache and retrieval
+        await checkAsync("AnimeRelationsService caching and retrieval") {
+            let mockItem = RelatedAnimeItem(
+                malID: 58567,
+                relationType: "SEQUEL",
+                title: "Solo Leveling Season 2",
+                englishTitle: "Solo Leveling Season 2: Arise from the Shadow",
+                coverImageURL: "https://example.com/sl2.jpg",
+                format: "TV",
+                status: "FINISHED",
+                episodes: 13,
+                seasonYear: 2025
+            )
+
+            AnimeRelationsService.shared.setCachedRelations([mockItem], for: 52299)
+            let fetched = await AnimeRelationsService.shared.fetchRelations(for: 52299)
+
+            guard fetched.count == 1, fetched.first?.malID == 58567 else {
+                throw NSError(domain: "Test", code: 150, userInfo: [NSLocalizedDescriptionKey: "AnimeRelationsService failed to return cached relations"])
+            }
+
+            let empty = await AnimeRelationsService.shared.fetchRelations(for: -1)
+            guard empty.isEmpty else {
+                throw NSError(domain: "Test", code: 151, userInfo: [NSLocalizedDescriptionKey: "AnimeRelationsService should return empty for invalid ID"])
             }
         }
 

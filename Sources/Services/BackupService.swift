@@ -35,6 +35,7 @@ public final class BackupService: Sendable {
                 customTitleOverride: anime.customTitleOverride,
                 synopsis: anime.synopsis,
                 seasonYear: anime.seasonYear,
+                airingEndDate: anime.airingEndDate,
                 genres: anime.genres,
                 broadcastDayRaw: anime.broadcastDayRaw,
                 broadcastTimeUTC: anime.broadcastTimeUTC
@@ -94,6 +95,7 @@ public final class BackupService: Sendable {
                 if let custom = record.customTitleOverride { existing.customTitleOverride = custom }
                 if let syn = record.synopsis { existing.synopsis = syn }
                 if let sy = record.seasonYear { existing.seasonYear = sy }
+                if let ed = record.airingEndDate { existing.airingEndDate = ed }
                 if let g = record.genres { existing.genres = g }
                 if let bd = record.broadcastDayRaw { existing.broadcastDayRaw = bd }
                 if let bt = record.broadcastTimeUTC { existing.broadcastTimeUTC = bt }
@@ -115,6 +117,7 @@ public final class BackupService: Sendable {
                     broadcastTimeUTC: record.broadcastTimeUTC,
                     malScore: record.malScore,
                     seasonYear: record.seasonYear,
+                    airingEndDate: record.airingEndDate,
                     genres: record.genres ?? []
                 )
                 newAnime.watchStatusRaw = record.watchStatus
@@ -176,6 +179,9 @@ public final class BackupService: Sendable {
                 if let start = entry.seriesStart {
                     existing.seasonYear = start
                 }
+                if let end = entry.seriesEnd {
+                    existing.airingEndDate = end
+                }
                 existing.statusLastUpdatedAt = Date()
                 if entry.status == .completed && existing.dateCompleted == nil {
                     existing.dateCompleted = Date()
@@ -189,7 +195,8 @@ public final class BackupService: Sendable {
                     coverImageRemoteURL: "",
                     airingStatusRaw: entry.airingStatusRaw ?? (entry.status == .completed ? "Finished Airing" : "Currently Airing"),
                     totalEpisodes: entry.totalEpisodes,
-                    seasonYear: entry.seriesStart
+                    seasonYear: entry.seriesStart,
+                    airingEndDate: entry.seriesEnd
                 )
                 newAnime.watchStatus = entry.status
                 newAnime.currentEpisodeProgress = entry.watchedEpisodes

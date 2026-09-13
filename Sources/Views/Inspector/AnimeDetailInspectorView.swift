@@ -13,6 +13,7 @@ public struct AnimeDetailInspectorView: View {
     @State private var tempCustomTitle = ""
     @State private var isEditingNotes = false
     @State private var isRefreshing = false
+    @State private var relatedAnime: [RelatedAnimeItem] = []
 
     private static let dateFormatter: DateFormatter = {
         let df = DateFormatter()
@@ -33,6 +34,13 @@ public struct AnimeDetailInspectorView: View {
                 headerSection
                     .padding(14)
                     .glassCard(cornerRadius: 16)
+
+                // Related Seasons (Prequels / Sequels)
+                if !relatedAnime.isEmpty {
+                    RelatedSeasonsCardView(relatedAnime: relatedAnime)
+                        .padding(14)
+                        .glassCard(cornerRadius: 14)
+                }
 
                 // Watch Status & Queue Actions
                 statusAndQueueSection
@@ -123,6 +131,9 @@ public struct AnimeDetailInspectorView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Are you sure you want to remove \"\(anime.title)\" from your local library? This action cannot be undone.")
+        }
+        .task(id: anime.malID) {
+            relatedAnime = await AnimeRelationsService.shared.fetchRelations(for: anime.malID)
         }
     }
 
@@ -232,12 +243,14 @@ public struct AnimeDetailInspectorView: View {
                 }
                 .padding(.top, 2)
 
-                if let releaseDate = anime.seasonYearFormatted {
-                    HStack(spacing: 4) {
+                if let dates = anime.airingDatesDisplay {
+                    HStack(alignment: .top, spacing: 4) {
                         Image(systemName: "calendar")
                             .font(.system(size: 10))
-                        Text(releaseDate)
+                            .padding(.top, 1)
+                        Text(dates)
                             .font(.system(size: 11, weight: .medium))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .foregroundStyle(.secondary)
                 }
@@ -489,6 +502,9 @@ public struct AnimeDetailInspectorView: View {
                 }
                 if let releaseDate = anime.seasonYearFormatted {
                     metadataRow(label: "Release Date", value: releaseDate)
+                }
+                if let ended = anime.airingEndDateFormatted, anime.airingStatus == .finishedAiring {
+                    metadataRow(label: "Ended", value: ended)
                 }
                 if let day = anime.broadcastDayRaw {
                     metadataRow(label: "Broadcast", value: day)

@@ -20,7 +20,8 @@ public final class TrackedAnime {
     public var broadcastDayRaw: String? = nil // e.g. "Mondays"
     public var broadcastTimeUTC: String? = nil // e.g. "15:00"
     public var malScore: Double? = nil
-    public var seasonYear: String? = nil // e.g. "Spring 2026"
+    public var seasonYear: String? = nil // e.g. "Spring 2026" or "2026-06-26"
+    public var airingEndDate: String? = nil // e.g. "2026-09-11"
     public var genres: [String] = [] // Genre tags array
 
     // User Local State (Immutable / User Controlled)
@@ -49,6 +50,7 @@ public final class TrackedAnime {
         broadcastTimeUTC: String? = nil,
         malScore: Double? = nil,
         seasonYear: String? = nil,
+        airingEndDate: String? = nil,
         genres: [String] = [],
         bannerImageRemoteURL: String? = nil
     ) {
@@ -66,6 +68,7 @@ public final class TrackedAnime {
         self.broadcastTimeUTC = broadcastTimeUTC
         self.malScore = malScore
         self.seasonYear = seasonYear
+        self.airingEndDate = airingEndDate
         self.genres = genres
 
         self.watchStatusRaw = WatchStatus.planToWatch.rawValue
@@ -94,6 +97,55 @@ public final class TrackedAnime {
     public var seasonYearFormatted: String? {
         guard let seasonYear, !seasonYear.isEmpty else { return nil }
         return AnimeDateFormatter.format(rawDateString: seasonYear)
+    }
+
+    public var airingEndDateFormatted: String? {
+        guard let airingEndDate, !airingEndDate.isEmpty else { return nil }
+        return AnimeDateFormatter.format(rawDateString: airingEndDate)
+    }
+
+    /// Resolves formatted airing dates display according to airing status:
+    /// - Finished Airing: Date range (e.g. "26th Jun 2026 – 11th Sep 2026") or single date if same.
+    /// - Currently Airing: "26th Jun 2026 – Present"
+    /// - Not Yet Aired: Scheduled start date (e.g. "26th Jun 2026") or "Upcoming", without finished date.
+    public var airingDatesDisplay: String? {
+        let start = seasonYearFormatted
+        let end = airingEndDateFormatted
+
+        switch airingStatus {
+        case .finishedAiring:
+            if let start, let end {
+                if start == end {
+                    return start
+                } else {
+                    return "\(start) – \(end)"
+                }
+            } else if let end {
+                return "Finished: \(end)"
+            } else {
+                return start
+            }
+
+        case .currentlyAiring:
+            if let start {
+                return "\(start) – Present"
+            } else {
+                return "Currently Airing"
+            }
+
+        case .notYetAired:
+            if let start {
+                return start
+            } else {
+                return "Upcoming"
+            }
+
+        case nil:
+            if let start, let end, start != end {
+                return "\(start) – \(end)"
+            }
+            return start ?? end
+        }
     }
 
     // MARK: - State Manipulation Mechanics

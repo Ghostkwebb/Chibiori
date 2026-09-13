@@ -37,6 +37,7 @@ public struct AnimeBackupRecord: Codable, Identifiable, Sendable {
     public let customTitleOverride: String?
     public let synopsis: String?
     public let seasonYear: String?
+    public let airingEndDate: String?
     public let genres: [String]?
     public let broadcastDayRaw: String?
     public let broadcastTimeUTC: String?
@@ -60,6 +61,7 @@ public struct AnimeBackupRecord: Codable, Identifiable, Sendable {
         customTitleOverride: String? = nil,
         synopsis: String? = nil,
         seasonYear: String? = nil,
+        airingEndDate: String? = nil,
         genres: [String]? = nil,
         broadcastDayRaw: String? = nil,
         broadcastTimeUTC: String? = nil
@@ -82,6 +84,7 @@ public struct AnimeBackupRecord: Codable, Identifiable, Sendable {
         self.customTitleOverride = customTitleOverride
         self.synopsis = synopsis
         self.seasonYear = seasonYear
+        self.airingEndDate = airingEndDate
         self.genres = genres
         self.broadcastDayRaw = broadcastDayRaw
         self.broadcastTimeUTC = broadcastTimeUTC

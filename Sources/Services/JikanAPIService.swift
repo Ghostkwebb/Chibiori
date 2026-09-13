@@ -199,6 +199,8 @@ public actor JikanAPIService {
               episodes
               averageScore
               seasonYear
+              startDate { year month day }
+              endDate { year month day }
               genres
             }
           }
@@ -232,6 +234,8 @@ public actor JikanAPIService {
               episodes
               averageScore
               seasonYear
+              startDate { year month day }
+              endDate { year month day }
               genres
             }
           }
@@ -255,6 +259,8 @@ public actor JikanAPIService {
               episodes
               averageScore
               seasonYear
+              startDate { year month day }
+              endDate { year month day }
               genres
             }
           }
@@ -314,6 +320,25 @@ public actor JikanAPIService {
             let genreStrings = item["genres"] as? [String] ?? []
             let genreEntities = genreStrings.map { JikanNamedEntityDTO(malId: 0, name: $0) }
 
+            let startObj = item["startDate"] as? [String: Any]
+            let startDay = startObj?["day"] as? Int
+            let startMonth = startObj?["month"] as? Int
+            let startYear = startObj?["year"] as? Int
+
+            let endObj = item["endDate"] as? [String: Any]
+            let endDay = endObj?["day"] as? Int
+            let endMonth = endObj?["month"] as? Int
+            let endYear = endObj?["year"] as? Int
+
+            var aired: JikanAiredDTO? = nil
+            if startYear != nil || endYear != nil {
+                let airedProp = JikanAiredPropDTO(
+                    from: JikanDatePropDTO(day: startDay, month: startMonth, year: startYear),
+                    to: JikanDatePropDTO(day: endDay, month: endMonth, year: endYear)
+                )
+                aired = JikanAiredDTO(prop: airedProp)
+            }
+
             let images = JikanImagesDTO(
                 jpg: JikanImageFormatDTO(imageUrl: coverLarge, smallImageUrl: nil, largeImageUrl: coverLarge),
                 webp: JikanImageFormatDTO(imageUrl: coverLarge, smallImageUrl: nil, largeImageUrl: coverLarge)
@@ -335,7 +360,8 @@ public actor JikanAPIService {
                 genres: genreEntities,
                 studios: nil,
                 rating: nil,
-                duration: nil
+                duration: nil,
+                aired: aired
             )
             results.append(dto)
         }
