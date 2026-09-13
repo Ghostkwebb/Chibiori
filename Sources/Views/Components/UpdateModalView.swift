@@ -9,10 +9,7 @@ public struct UpdateModalView: View {
     public init() {}
 
     public var body: some View {
-        ZStack {
-            AmbientGlowBackground()
-
-            VStack(spacing: 20) {
+        VStack(spacing: 20) {
                 // Header Icon
                 HStack(spacing: 12) {
                     ZStack {
@@ -221,9 +218,29 @@ public struct UpdateModalView: View {
                 }
             }
             .padding(24)
-        }
-        .frame(width: 460)
-        .glassCard(cornerRadius: 18)
+            .frame(width: 440)
+            .fixedSize(horizontal: true, vertical: true)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color(nsColor: .windowBackgroundColor).opacity(0.95))
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color.black.opacity(0.40))
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.25), Color.white.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: Color.black.opacity(0.35), radius: 20, x: 0, y: 8)
     }
 
     private var headerIconName: String {

@@ -111,7 +111,9 @@ public struct LibraryContainerView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(watchStatusFilter?.displayName ?? "All Anime")
         .task {
             await hydrationService.hydrateMissingMetadata(context: modelContext)

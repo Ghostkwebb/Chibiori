@@ -30,57 +30,67 @@ public struct AnimeGridView: View {
     }
 
     public var body: some View {
-        GeometryReader { geo in
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(animes) { anime in
-                            AnimeCardView(
-                                anime: anime,
-                                isSelected: selectedAnimeID == anime.persistentModelID
-                            ) {
-                                isFocused = true
-                                selectedAnimeID = anime.persistentModelID
-                            }
-                            .equatable()
-                            .id(anime.persistentModelID)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(animes) { anime in
+                        AnimeCardView(
+                            anime: anime,
+                            isSelected: selectedAnimeID == anime.persistentModelID
+                        ) {
+                            isFocused = true
+                            selectedAnimeID = anime.persistentModelID
                         }
+                        .equatable()
+                        .id(anime.persistentModelID)
                     }
-                    .padding(16)
-                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .smooth120HzScroll()
-                .focusable()
-                .focused($isFocused)
-                .focusEffectDisabled()
-                .onAppear {
-                    availableWidth = geo.size.width
-                    isFocused = true
-                }
-                .onChange(of: geo.size.width) { _, newWidth in
-                    availableWidth = newWidth
-                }
-                .onTapGesture {
-                    isFocused = true
-                }
-                .onKeyPress(.rightArrow) {
-                    selectDelta(1, proxy: proxy)
-                    return .handled
-                }
-                .onKeyPress(.leftArrow) {
-                    selectDelta(-1, proxy: proxy)
-                    return .handled
-                }
-                .onKeyPress(.downArrow) {
-                    selectDelta(exactColumnsCount, proxy: proxy)
-                    return .handled
-                }
-                .onKeyPress(.upArrow) {
-                    selectDelta(-exactColumnsCount, proxy: proxy)
-                    return .handled
-                }
+                .padding(16)
+                .frame(maxWidth: .infinity)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .preference(key: GridWidthPreferenceKey.self, value: geo.size.width)
+                }
+            )
+            .onPreferenceChange(GridWidthPreferenceKey.self) { newWidth in
+                availableWidth = newWidth
+            }
+            .smooth120HzScroll()
+            .focusable()
+            .focused($isFocused)
+            .focusEffectDisabled()
+            .onAppear {
+                isFocused = true
+            }
+            .onTapGesture {
+                isFocused = true
+            }
+            .onKeyPress(.rightArrow) {
+                selectDelta(1, proxy: proxy)
+                return .handled
+            }
+            .onKeyPress(.leftArrow) {
+                selectDelta(-1, proxy: proxy)
+                return .handled
+            }
+            .onKeyPress(.downArrow) {
+                selectDelta(exactColumnsCount, proxy: proxy)
+                return .handled
+            }
+            .onKeyPress(.upArrow) {
+                selectDelta(-exactColumnsCount, proxy: proxy)
+                return .handled
+            }
+        }
+    }
+
+    private struct GridWidthPreferenceKey: PreferenceKey {
+        static var defaultValue: CGFloat = 800
+        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+            value = nextValue()
         }
     }
 

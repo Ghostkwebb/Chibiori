@@ -27,11 +27,7 @@ private final class WindowObservingView: NSView {
         window.animationBehavior = .default
         window.setFrameAutosaveName("ChibioriMainWindow")
 
-        if let contentView = window.contentView {
-            contentView.wantsLayer = true
-            contentView.layerContentsRedrawPolicy = .duringViewResize
-        }
-        self.autoresizingMask = [.width, .height]
+        window.minSize = NSSize(width: 500, height: 400)
 
         if eventMonitor == nil {
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak window] event in
