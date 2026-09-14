@@ -26,16 +26,26 @@ public final class MetadataHydrationService {
         let fetchDescriptor = FetchDescriptor<TrackedAnime>()
         guard let allAnimes = try? context.fetch(fetchDescriptor) else { return }
 
-        let missingAnimes = allAnimes.filter {
-            $0.coverImageRemoteURL.isEmpty ||
-            $0.synopsis.isEmpty ||
-            $0.airingStatusRaw.isEmpty ||
-            $0.seasonYear == nil ||
-            $0.airingStatus == nil ||
-            $0.totalEpisodes == nil ||
-            $0.englishTitle == nil ||
-            $0.japaneseTitle == nil ||
-            ($0.airingStatus == .finishedAiring && $0.airingEndDate == nil)
+        var missingAnimes: [TrackedAnime] = []
+        for anime in allAnimes {
+            let hasEnglish = anime.dubbedLanguages.contains { $0.caseInsensitiveCompare("English") == .orderedSame }
+            let isVerifiedEnglish = await DubbedLanguageService.shared.hasVerifiedEnglishDub(malId: anime.malID)
+            let needsEnglishDub = !hasEnglish && isVerifiedEnglish
+
+            if anime.coverImageRemoteURL.isEmpty ||
+               anime.synopsis.isEmpty ||
+               anime.airingStatusRaw.isEmpty ||
+               anime.seasonYear == nil ||
+               anime.airingStatus == nil ||
+               anime.totalEpisodes == nil ||
+               anime.englishTitle == nil ||
+               anime.japaneseTitle == nil ||
+               (anime.airingStatus == .finishedAiring && anime.airingEndDate == nil) ||
+               (anime.englishTitle != nil && anime.title == anime.englishTitle) ||
+               anime.dubbedLanguages.isEmpty ||
+               needsEnglishDub {
+                missingAnimes.append(anime)
+            }
         }
         guard !missingAnimes.isEmpty else { return }
 
@@ -57,6 +67,11 @@ public final class MetadataHydrationService {
 
             for anime in chunk {
                 if let meta = metadataMap[anime.malID] {
+                    if let romaji = meta.title, !romaji.isEmpty {
+                        if anime.title.isEmpty || anime.title == anime.englishTitle || anime.title == meta.englishTitle {
+                            anime.title = romaji
+                        }
+                    }
                     if anime.coverImageRemoteURL.isEmpty, let cover = meta.coverURL, !cover.isEmpty {
                         anime.coverImageRemoteURL = cover
                     }
@@ -69,7 +84,7 @@ public final class MetadataHydrationService {
                     if anime.japaneseTitle == nil, let jp = meta.japaneseTitle, !jp.isEmpty {
                         anime.japaneseTitle = jp
                     }
-                    if anime.malScore == nil, let score = meta.score {
+                    if anime.malScore == nil, let score = meta.score, score > 0 {
                         anime.malScore = score
                     }
                     if let status = meta.airingStatusRaw, !status.isEmpty {
@@ -86,6 +101,24 @@ public final class MetadataHydrationService {
                     }
                     if anime.genres.isEmpty, !meta.genres.isEmpty {
                         anime.genres = meta.genres
+                    }
+                }
+
+                let hasEnglish = anime.dubbedLanguages.contains { $0.caseInsensitiveCompare("English") == .orderedSame }
+                let isVerifiedEnglish = await DubbedLanguageService.shared.hasVerifiedEnglishDub(malId: anime.malID)
+                let needsEnglish = !hasEnglish && isVerifiedEnglish
+                if anime.dubbedLanguages.isEmpty || needsEnglish {
+                    let dubs = await DubbedLanguageService.shared.fetchDubbedLanguages(malId: anime.malID)
+                    if !dubs.isEmpty {
+                        let existingLower = Set(anime.dubbedLanguages.map { $0.lowercased() })
+                        let newNames = dubs.map { $0.name }
+                        var merged = anime.dubbedLanguages
+                        for name in newNames where !existingLower.contains(name.lowercased()) {
+                            merged.append(name)
+                        }
+                        if merged != anime.dubbedLanguages {
+                            anime.dubbedLanguages = merged
+                        }
                     }
                 }
             }
@@ -240,6 +273,10 @@ public final class MetadataHydrationService {
                 anime.synopsis = syn
             }
 
+            if let romaji = meta.title, !romaji.isEmpty {
+                anime.title = romaji
+            }
+
             if let en = meta.englishTitle, !en.isEmpty {
                 anime.englishTitle = en
             }
@@ -254,6 +291,11 @@ public final class MetadataHydrationService {
 
             if !meta.genres.isEmpty {
                 anime.genres = meta.genres
+            }
+
+            let dubs = await DubbedLanguageService.shared.fetchDubbedLanguages(malId: anime.malID, forceRefresh: true)
+            if !dubs.isEmpty {
+                anime.dubbedLanguages = dubs.map { $0.name }
             }
 
             try? context.save()
@@ -274,6 +316,9 @@ public final class MetadataHydrationService {
             if let syn = dto.synopsis, !syn.isEmpty {
                 anime.synopsis = syn
             }
+            if !dto.title.isEmpty {
+                anime.title = dto.title
+            }
             if let en = dto.titleEnglish, !en.isEmpty {
                 anime.englishTitle = en
             }
@@ -288,6 +333,10 @@ public final class MetadataHydrationService {
             }
             if let genres = dto.genres, !genres.isEmpty {
                 anime.genres = genres.map { $0.name }
+            }
+            let dubs = await DubbedLanguageService.shared.fetchDubbedLanguages(malId: anime.malID, forceRefresh: true)
+            if !dubs.isEmpty {
+                anime.dubbedLanguages = dubs.map { $0.name }
             }
             try? context.save()
         }

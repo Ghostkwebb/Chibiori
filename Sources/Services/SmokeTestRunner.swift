@@ -645,6 +645,111 @@ public final class SmokeTestRunner {
             }
         }
 
+        // Test 17: Romaji Title Resolution and Preservation (Skeleton Knight test case)
+        check("Romaji title resolution and preference toggling") {
+            let anime = TrackedAnime(
+                malID: 48760,
+                title: "Gaikotsu Kishi-sama, Tadaima Isekai e Odekakechuu",
+                synopsis: "Skeleton Knight wakes up in another world.",
+                coverImageRemoteURL: "https://example.com/cover.jpg",
+                airingStatusRaw: "Finished Airing",
+                englishTitle: "Skeleton Knight in Another World",
+                japaneseTitle: "骸骨騎士様、只今異世界へお出掛け中",
+                totalEpisodes: 12
+            )
+
+            guard anime.displayTitle(for: .romaji) == "Gaikotsu Kishi-sama, Tadaima Isekai e Odekakechuu" else {
+                throw NSError(domain: "Test", code: 160, userInfo: [NSLocalizedDescriptionKey: "Romaji title failed to display canonical romaji name"])
+            }
+            guard anime.displayTitle(for: .english) == "Skeleton Knight in Another World" else {
+                throw NSError(domain: "Test", code: 161, userInfo: [NSLocalizedDescriptionKey: "English title failed to display english name"])
+            }
+            guard anime.displayTitle(for: .native) == "骸骨騎士様、只今異世界へお出掛け中" else {
+                throw NSError(domain: "Test", code: 162, userInfo: [NSLocalizedDescriptionKey: "Native title failed to display japanese name"])
+            }
+        }
+
+        // Test 18: DubbedLanguage Resolution and Code Normalization
+        check("DubbedLanguage resolution, codes, and sorting priority") {
+            let en = DubbedLanguage.resolve(from: "English")
+            guard en.code == "EN" && en.name == "English" && !en.isNativeAudio else {
+                throw NSError(domain: "Test", code: 170, userInfo: [NSLocalizedDescriptionKey: "English resolution failed"])
+            }
+
+            let hi = DubbedLanguage.resolve(from: "hindi")
+            guard hi.code == "HI" && hi.nativeName == "हिन्दी" else {
+                throw NSError(domain: "Test", code: 171, userInfo: [NSLocalizedDescriptionKey: "Hindi resolution failed"])
+            }
+
+            let zh = DubbedLanguage.resolve(from: "chinese")
+            guard zh.code == "ZH" && zh.nativeName == "中文" else {
+                throw NSError(domain: "Test", code: 172, userInfo: [NSLocalizedDescriptionKey: "Chinese resolution failed"])
+            }
+
+            let jp = DubbedLanguage.resolve(from: "Japanese", isNative: true)
+            guard jp.code == "JP" && jp.isNativeAudio else {
+                throw NSError(domain: "Test", code: 173, userInfo: [NSLocalizedDescriptionKey: "Japanese native resolution failed"])
+            }
+
+            guard jp.sortPriority < en.sortPriority && en.sortPriority < hi.sortPriority else {
+                throw NSError(domain: "Test", code: 174, userInfo: [NSLocalizedDescriptionKey: "Sort priorities incorrect"])
+            }
+        }
+
+        // Test 19: TrackedAnime Dubbed Languages Resolution and Formatting
+        check("TrackedAnime dubbedLanguages resolution and display string") {
+            let anime = TrackedAnime(
+                malID: 20,
+                title: "Naruto",
+                synopsis: "Ninja story",
+                coverImageRemoteURL: "https://example.com/naruto.jpg",
+                airingStatusRaw: "Finished Airing",
+                dubbedLanguages: ["English", "Hindi", "French", "Spanish"]
+            )
+
+            let resolved = anime.resolvedDubbedLanguages
+            guard resolved.contains(where: { $0.code == "JP" && $0.isNativeAudio }) else {
+                throw NSError(domain: "Test", code: 180, userInfo: [NSLocalizedDescriptionKey: "Should include default JP native audio"])
+            }
+            guard resolved.contains(where: { $0.code == "HI" }) else {
+                throw NSError(domain: "Test", code: 181, userInfo: [NSLocalizedDescriptionKey: "Should resolve Hindi dub"])
+            }
+            guard resolved.contains(where: { $0.code == "EN" }) else {
+                throw NSError(domain: "Test", code: 182, userInfo: [NSLocalizedDescriptionKey: "Should resolve English dub"])
+            }
+
+            let display = anime.dubbedLanguagesDisplay
+            guard display.contains("Japanese (Original)") && display.contains("English") && display.contains("Hindi") else {
+                throw NSError(domain: "Test", code: 183, userInfo: [NSLocalizedDescriptionKey: "Display string incorrect: \(display)"])
+            }
+        }
+
+        // Test 20: DubbedLanguageService Multi-Language & English Dub Detection
+        await checkAsync("DubbedLanguageService dataset loading and English dub verification") {
+            let slimeHasEnglish = await DubbedLanguageService.shared.hasVerifiedEnglishDub(malId: 39551)
+            guard slimeHasEnglish else {
+                throw NSError(domain: "Test", code: 190, userInfo: [NSLocalizedDescriptionKey: "MAL ID 39551 (Slime S2) should have verified English dub"])
+            }
+
+            let skeletonHasEnglish = await DubbedLanguageService.shared.hasVerifiedEnglishDub(malId: 48760)
+            guard skeletonHasEnglish else {
+                throw NSError(domain: "Test", code: 191, userInfo: [NSLocalizedDescriptionKey: "MAL ID 48760 (Skeleton Knight) should have verified English dub"])
+            }
+
+            let dubs = await DubbedLanguageService.shared.fetchDubbedLanguages(malId: 39551)
+            let codes = Set(dubs.map { $0.code })
+
+            guard codes.contains("EN") else {
+                throw NSError(domain: "Test", code: 192, userInfo: [NSLocalizedDescriptionKey: "Slime S2 dubs must include English (EN). Found: \(codes)"])
+            }
+            guard codes.contains("JP") else {
+                throw NSError(domain: "Test", code: 193, userInfo: [NSLocalizedDescriptionKey: "Slime S2 dubs must include Japanese (JP). Found: \(codes)"])
+            }
+            guard codes.contains("HI") else {
+                throw NSError(domain: "Test", code: 194, userInfo: [NSLocalizedDescriptionKey: "Slime S2 dubs must include Hindi (HI). Found: \(codes)"])
+            }
+        }
+
         print("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print("  Summary: \(passedCount) Passed, \(failedCount) Failed")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")

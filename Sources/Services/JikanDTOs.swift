@@ -64,6 +64,7 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
     public let duration: String?
     public let bannerImageURL: String?
     public let aired: JikanAiredDTO?
+    public var dubbedLanguages: [String]?
 
     enum CodingKeys: String, CodingKey {
         case malId = "mal_id"
@@ -85,6 +86,7 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
         case duration
         case bannerImageURL = "banner_image_url"
         case aired
+        case dubbedLanguages
     }
 
     public init(
@@ -106,7 +108,8 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
         rating: String? = nil,
         duration: String? = nil,
         bannerImageURL: String? = nil,
-        aired: JikanAiredDTO? = nil
+        aired: JikanAiredDTO? = nil,
+        dubbedLanguages: [String]? = nil
     ) {
         self.malId = malId
         self.title = title
@@ -127,6 +130,45 @@ public struct JikanAnimeDTO: Codable, Identifiable, Sendable {
         self.duration = duration
         self.bannerImageURL = bannerImageURL
         self.aired = aired
+        self.dubbedLanguages = dubbedLanguages
+    }
+
+    public var resolvedDubbedLanguages: [DubbedLanguage] {
+        guard let list = dubbedLanguages, !list.isEmpty else {
+            return [DubbedLanguage(code: "JP", name: "Japanese", nativeName: "日本語", isNativeAudio: true, flag: "🇯🇵")]
+        }
+        var resolvedList: [DubbedLanguage] = []
+        var seenCodes = Set<String>()
+
+        let hasExplicitNative = list.contains { DubbedLanguage.resolve(from: $0).code == "JP" }
+        if !hasExplicitNative {
+            let jp = DubbedLanguage(code: "JP", name: "Japanese", nativeName: "日本語", isNativeAudio: true, flag: "🇯🇵")
+            resolvedList.append(jp)
+            seenCodes.insert("JP")
+        }
+
+        for raw in list {
+            let lang = DubbedLanguage.resolve(from: raw)
+            if !seenCodes.contains(lang.code) {
+                seenCodes.insert(lang.code)
+                resolvedList.append(lang)
+            }
+        }
+
+        return resolvedList.sorted {
+            if $0.sortPriority != $1.sortPriority {
+                return $0.sortPriority < $1.sortPriority
+            }
+            return $0.name < $1.name
+        }
+    }
+
+    public var dubbedLanguagesDisplay: String {
+        let list = resolvedDubbedLanguages
+        if list.isEmpty { return "Unknown" }
+        return list.map { lang in
+            lang.isNativeAudio ? "\(lang.name) (Original)" : lang.name
+        }.joined(separator: ", ")
     }
 
     public var coverImageURL: String {

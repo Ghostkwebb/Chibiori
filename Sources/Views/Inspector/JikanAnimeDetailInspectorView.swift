@@ -9,6 +9,7 @@ public struct JikanAnimeDetailInspectorView: View {
     let onAddedToLibrary: (TrackedAnime) -> Void
 
     @State private var relatedAnime: [RelatedAnimeItem] = []
+    @State private var loadedDubbedLanguages: [DubbedLanguage] = []
 
     public init(dto: JikanAnimeDTO, onAddedToLibrary: @escaping (TrackedAnime) -> Void) {
         self.dto = dto
@@ -49,7 +50,10 @@ public struct JikanAnimeDetailInspectorView: View {
         }
         .frame(minWidth: 300, idealWidth: 350, maxWidth: 440)
         .task(id: dto.malId) {
-            relatedAnime = await AnimeRelationsService.shared.fetchRelations(for: dto.malId)
+            async let rels = AnimeRelationsService.shared.fetchRelations(for: dto.malId)
+            async let dubs = DubbedLanguageService.shared.fetchDubbedLanguages(malId: dto.malId)
+            relatedAnime = await rels
+            loadedDubbedLanguages = await dubs
         }
     }
 
@@ -145,6 +149,8 @@ public struct JikanAnimeDetailInspectorView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
+
+                dubbedLanguagesHeaderRow
             }
         }
         .padding(14)
@@ -177,7 +183,8 @@ public struct JikanAnimeDetailInspectorView: View {
                         malScore: dto.score,
                         seasonYear: dto.startDateFormatted ?? dto.seasonYearFormatted,
                         airingEndDate: dto.airingEndDateFormatted,
-                        genres: dto.genreNames
+                        genres: dto.genreNames,
+                        dubbedLanguages: loadedDubbedLanguages.map { $0.name }
                     )
                     anime.watchStatus = status
                     modelContext.insert(anime)
@@ -226,6 +233,9 @@ public struct JikanAnimeDetailInspectorView: View {
                 if let genres = dto.genres, !genres.isEmpty {
                     metadataRow(label: "Genres", value: genres.map { $0.name }.joined(separator: ", "))
                 }
+                if !loadedDubbedLanguages.isEmpty {
+                    metadataRow(label: "Dubbed In", value: loadedDubbedLanguages.map { $0.isNativeAudio ? "\($0.name) (Original)" : $0.name }.joined(separator: ", "))
+                }
                 if let broadcast = dto.broadcast?.string {
                     metadataRow(label: "Broadcast", value: broadcast)
                 }
@@ -249,5 +259,51 @@ public struct JikanAnimeDetailInspectorView: View {
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.trailing)
         }
+    }
+
+    // MARK: - Dubbed Languages Header Row
+    private var dubbedLanguagesHeaderRow: some View {
+        let langs = !loadedDubbedLanguages.isEmpty ? loadedDubbedLanguages : dto.resolvedDubbedLanguages
+        return HStack(alignment: .top, spacing: 5) {
+            Image(systemName: "speaker.wave.2.fill")
+                .font(.system(size: 9.5))
+                .foregroundStyle(.secondary)
+                .padding(.top, 2)
+
+            WrappingFlowLayout(horizontalSpacing: 4, verticalSpacing: 4) {
+                ForEach(langs) { lang in
+                    dubPill(lang: lang)
+                }
+            }
+        }
+        .padding(.top, 1)
+    }
+
+    private func dubPill(lang: DubbedLanguage) -> some View {
+        HStack(spacing: 2) {
+            Text(lang.code)
+                .font(.system(size: 9.5, weight: lang.isNativeAudio ? .bold : .medium, design: .rounded))
+            if lang.isNativeAudio {
+                Circle()
+                    .fill(Color.purple.opacity(0.85))
+                    .frame(width: 3.5, height: 3.5)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(
+            lang.isNativeAudio ?
+            Color.purple.opacity(0.25) :
+            Color.white.opacity(0.1)
+        )
+        .foregroundStyle(lang.isNativeAudio ? Color.purple.opacity(0.95) : Color.secondary)
+        .clipShape(Capsule())
+        .overlay(
+            Capsule().stroke(
+                lang.isNativeAudio ? Color.purple.opacity(0.4) : Color.white.opacity(0.12),
+                lineWidth: 0.6
+            )
+        )
+        .help(lang.tooltipText)
     }
 }

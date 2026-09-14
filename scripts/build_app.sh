@@ -33,6 +33,13 @@ if [ -f "$DIR/Chibiori_Logo.icns" ]; then
     cp "$DIR/Chibiori_Logo.icns" "$RESOURCES/Chibiori_Logo.icns"
 fi
 
+# Copy Dub Datasets
+if [ -d "$DIR/Resources/dubs" ]; then
+    echo "📦 Copying dub datasets into Resources..."
+    mkdir -p "$RESOURCES/dubs"
+    cp -R "$DIR/Resources/dubs/" "$RESOURCES/dubs/"
+fi
+
 # Copy Resource Bundles (if any)
 find "$DIR/.build" -name "*.bundle" 2>/dev/null | while read -r bundle; do
     echo "📦 Copying resource bundle: $bundle"
@@ -63,9 +70,9 @@ cat << 'EOF' > "$CONTENTS/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.12</string>
+    <string>1.0.13</string>
     <key>CFBundleVersion</key>
-    <string>13</string>
+    <string>14</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>

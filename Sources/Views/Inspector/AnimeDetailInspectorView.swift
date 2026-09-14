@@ -14,6 +14,8 @@ public struct AnimeDetailInspectorView: View {
     @State private var isEditingNotes = false
     @State private var isRefreshing = false
     @State private var relatedAnime: [RelatedAnimeItem] = []
+    @State private var showDubEditor = false
+    @State private var customLanguageInput = ""
 
     private static let dateFormatter: DateFormatter = {
         let df = DateFormatter()
@@ -120,6 +122,9 @@ public struct AnimeDetailInspectorView: View {
             .padding(20)
             .frame(width: 380)
         }
+        .sheet(isPresented: $showDubEditor) {
+            dubEditorSheet
+        }
         .confirmationDialog(
             "Delete Anime",
             isPresented: $showDeleteConfirmation,
@@ -134,6 +139,21 @@ public struct AnimeDetailInspectorView: View {
         }
         .task(id: anime.malID) {
             relatedAnime = await AnimeRelationsService.shared.fetchRelations(for: anime.malID)
+            let dubs = await DubbedLanguageService.shared.fetchDubbedLanguages(malId: anime.malID)
+            if !dubs.isEmpty {
+                let existingLower = Set(anime.dubbedLanguages.map { $0.lowercased() })
+                let newNames = dubs.map { $0.name }
+                if anime.dubbedLanguages.isEmpty || (!existingLower.contains("english") && newNames.contains("English")) {
+                    var merged = anime.dubbedLanguages
+                    for name in newNames where !existingLower.contains(name.lowercased()) {
+                        merged.append(name)
+                    }
+                    if merged != anime.dubbedLanguages {
+                        anime.dubbedLanguages = merged
+                        try? modelContext.save()
+                    }
+                }
+            }
         }
     }
 
@@ -264,6 +284,8 @@ public struct AnimeDetailInspectorView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
+
+                dubbedLanguagesHeaderRow
             }
         }
         .padding(14)
@@ -512,6 +534,9 @@ public struct AnimeDetailInspectorView: View {
                 if !anime.genres.isEmpty {
                     metadataRow(label: "Genres", value: anime.genres.joined(separator: ", "))
                 }
+                if !anime.resolvedDubbedLanguages.isEmpty {
+                    metadataRow(label: "Dubbed In", value: anime.dubbedLanguagesDisplay)
+                }
                 Divider().opacity(0.3)
                 metadataRow(label: "Added", value: Self.dateFormatter.string(from: anime.dateAdded))
                 if let started = anime.dateStarted {
@@ -561,5 +586,162 @@ public struct AnimeDetailInspectorView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Dubbed Languages Header Row
+    private var dubbedLanguagesHeaderRow: some View {
+        let langs = anime.resolvedDubbedLanguages
+        return HStack(alignment: .top, spacing: 5) {
+            Image(systemName: "speaker.wave.2.fill")
+                .font(.system(size: 9.5))
+                .foregroundStyle(.secondary)
+                .padding(.top, 2)
+
+            WrappingFlowLayout(horizontalSpacing: 4, verticalSpacing: 4) {
+                ForEach(langs) { lang in
+                    dubPill(lang: lang)
+                }
+
+                Button {
+                    showDubEditor = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Capsule())
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Edit or add dubbed languages")
+            }
+        }
+        .padding(.top, 1)
+    }
+
+    private func dubPill(lang: DubbedLanguage) -> some View {
+        HStack(spacing: 2) {
+            Text(lang.code)
+                .font(.system(size: 9.5, weight: lang.isNativeAudio ? .bold : .medium, design: .rounded))
+            if lang.isNativeAudio {
+                Circle()
+                    .fill(Color.purple.opacity(0.85))
+                    .frame(width: 3.5, height: 3.5)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(
+            lang.isNativeAudio ?
+            Color.purple.opacity(0.25) :
+            Color.white.opacity(0.1)
+        )
+        .foregroundStyle(lang.isNativeAudio ? Color.purple.opacity(0.95) : Color.secondary)
+        .clipShape(Capsule())
+        .overlay(
+            Capsule().stroke(
+                lang.isNativeAudio ? Color.purple.opacity(0.4) : Color.white.opacity(0.12),
+                lineWidth: 0.6
+            )
+        )
+        .help(lang.tooltipText)
+    }
+
+    private func toggleLanguage(_ lang: DubbedLanguage) {
+        if let index = anime.dubbedLanguages.firstIndex(where: { DubbedLanguage.resolve(from: $0).code == lang.code }) {
+            anime.dubbedLanguages.remove(at: index)
+        } else {
+            anime.dubbedLanguages.append(lang.name)
+        }
+        try? modelContext.save()
+    }
+
+    private var dubEditorSheet: some View {
+        VStack(spacing: 16) {
+            Text("Manage Dubbed Languages")
+                .font(.system(size: 15, weight: .bold))
+
+            Text("Select the audio and dub tracks available for this anime, or add custom regional languages.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            ScrollView {
+                WrappingFlowLayout(horizontalSpacing: 6, verticalSpacing: 6) {
+                    ForEach(DubbedLanguage.standardCatalog) { standardLang in
+                        let isIncluded = anime.dubbedLanguages.contains { DubbedLanguage.resolve(from: $0).code == standardLang.code } || (standardLang.code == "JP" && anime.dubbedLanguages.isEmpty)
+                        Button {
+                            toggleLanguage(standardLang)
+                        } label: {
+                            HStack(spacing: 4) {
+                                if let flag = standardLang.flag {
+                                    Text(flag)
+                                }
+                                Text(standardLang.name)
+                                if isIncluded {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 9, weight: .bold))
+                                }
+                            }
+                            .font(.system(size: 11, weight: isIncluded ? .semibold : .regular))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(isIncluded ? Color.purple.opacity(0.35) : Color.white.opacity(0.08))
+                            .foregroundStyle(isIncluded ? Color.white : Color.secondary)
+                            .clipShape(Capsule())
+                            .overlay(
+                                Capsule().stroke(isIncluded ? Color.purple.opacity(0.6) : Color.white.opacity(0.15), lineWidth: 0.8)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(8)
+            }
+            .frame(maxHeight: 180)
+
+            HStack(spacing: 8) {
+                TextField("Add custom language (e.g. Tamil, Telugu, Catalan)...", text: $customLanguageInput)
+                    .textFieldStyle(.roundedBorder)
+
+                Button("Add") {
+                    let trimmed = customLanguageInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        if !anime.dubbedLanguages.contains(where: { $0.lowercased() == trimmed.lowercased() }) {
+                            anime.dubbedLanguages.append(trimmed)
+                            try? modelContext.save()
+                        }
+                        customLanguageInput = ""
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(customLanguageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(.horizontal)
+
+            HStack {
+                Button("Auto-Detect Dubs") {
+                    Task {
+                        let dubs = await DubbedLanguageService.shared.fetchDubbedLanguages(malId: anime.malID, forceRefresh: true)
+                        anime.dubbedLanguages = dubs.map { $0.name }
+                        try? modelContext.save()
+                    }
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11.5))
+                .foregroundStyle(.purple)
+
+                Spacer()
+
+                Button("Done") {
+                    showDubEditor = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding(.horizontal)
+        }
+        .padding(20)
+        .frame(width: 460, height: 390)
     }
 }

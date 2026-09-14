@@ -298,10 +298,10 @@ public actor JikanAPIService {
             guard id > 0 else { continue }
 
             let titleObj = item["title"] as? [String: Any]
-            let romaji = titleObj?["romaji"] as? String
-            let english = titleObj?["english"] as? String
-            let native = titleObj?["native"] as? String
-            let primaryTitle = english ?? romaji ?? native ?? "Untitled"
+            let romaji = (titleObj?["romaji"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let english = (titleObj?["english"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let native = (titleObj?["native"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let canonicalTitle = (romaji?.isEmpty == false ? romaji : nil) ?? (english?.isEmpty == false ? english : nil) ?? native ?? "Untitled"
 
             let desc = (item["description"] as? String)?
                 .replacingOccurrences(of: "<br>", with: "\n")
@@ -346,7 +346,8 @@ public actor JikanAPIService {
 
             let dto = JikanAnimeDTO(
                 malId: id,
-                title: primaryTitle,
+                title: canonicalTitle,
+                titleEnglish: english,
                 titleJapanese: native,
                 synopsis: desc,
                 images: images,

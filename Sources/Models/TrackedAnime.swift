@@ -23,6 +23,7 @@ public final class TrackedAnime {
     public var seasonYear: String? = nil // e.g. "Spring 2026" or "2026-06-26"
     public var airingEndDate: String? = nil // e.g. "2026-09-11"
     public var genres: [String] = [] // Genre tags array
+    public var dubbedLanguages: [String] = [] // Dubbed audio languages (e.g. ["English", "Hindi", "Chinese"])
 
     // User Local State (Immutable / User Controlled)
     public var watchStatusRaw: String = "planToWatch" // "planToWatch", "watching", "completed", "onHold", "dropped"
@@ -52,7 +53,8 @@ public final class TrackedAnime {
         seasonYear: String? = nil,
         airingEndDate: String? = nil,
         genres: [String] = [],
-        bannerImageRemoteURL: String? = nil
+        bannerImageRemoteURL: String? = nil,
+        dubbedLanguages: [String] = []
     ) {
         self.malID = malID
         self.title = title
@@ -70,6 +72,7 @@ public final class TrackedAnime {
         self.seasonYear = seasonYear
         self.airingEndDate = airingEndDate
         self.genres = genres
+        self.dubbedLanguages = dubbedLanguages
 
         self.watchStatusRaw = WatchStatus.planToWatch.rawValue
         self.currentEpisodeProgress = 0
@@ -216,6 +219,43 @@ public final class TrackedAnime {
             list.append((.native, jp))
         }
         return list
+    }
+
+    /// Structured, deduplicated and sorted list of dubbed and native audio languages
+    public var resolvedDubbedLanguages: [DubbedLanguage] {
+        var resolvedList: [DubbedLanguage] = []
+        var seenCodes = Set<String>()
+
+        let hasExplicitNative = dubbedLanguages.contains { DubbedLanguage.resolve(from: $0).code == "JP" }
+        if !hasExplicitNative {
+            let jp = DubbedLanguage(code: "JP", name: "Japanese", nativeName: "日本語", isNativeAudio: true, flag: "🇯🇵")
+            resolvedList.append(jp)
+            seenCodes.insert("JP")
+        }
+
+        for raw in dubbedLanguages {
+            let lang = DubbedLanguage.resolve(from: raw)
+            if !seenCodes.contains(lang.code) {
+                seenCodes.insert(lang.code)
+                resolvedList.append(lang)
+            }
+        }
+
+        return resolvedList.sorted {
+            if $0.sortPriority != $1.sortPriority {
+                return $0.sortPriority < $1.sortPriority
+            }
+            return $0.name < $1.name
+        }
+    }
+
+    /// Formatted display of dubbed languages for metadata section (e.g. "Japanese (Original), English, Hindi, Chinese")
+    public var dubbedLanguagesDisplay: String {
+        let list = resolvedDubbedLanguages
+        if list.isEmpty { return "Unknown" }
+        return list.map { lang in
+            lang.isNativeAudio ? "\(lang.name) (Original)" : lang.name
+        }.joined(separator: ", ")
     }
 
     /// Sets the watch status and manages lifecycle timestamps per specification
