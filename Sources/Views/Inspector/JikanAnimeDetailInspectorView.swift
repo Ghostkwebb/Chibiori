@@ -53,7 +53,7 @@ public struct JikanAnimeDetailInspectorView: View {
             }
             .padding(12)
         }
-        .frame(minWidth: 300, idealWidth: 350, maxWidth: 440)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: dto.malId) {
             async let rels = AnimeRelationsService.shared.fetchRelations(for: dto.malId, title: dto.title)
             async let dubs = DubbedLanguageService.shared.fetchDubbedLanguages(malId: dto.malId)

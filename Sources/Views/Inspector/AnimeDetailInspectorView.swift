@@ -86,7 +86,7 @@ public struct AnimeDetailInspectorView: View {
             }
             .padding(12)
         }
-        .frame(minWidth: 300, idealWidth: 350, maxWidth: 440)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $showCustomTitleEditor) {
             VStack(spacing: 16) {
                 Text("Set Custom Anime Title")

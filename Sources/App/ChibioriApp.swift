@@ -51,7 +51,7 @@ struct ChibioriApp: App {
                 .environment(navState)
                 .modelContainer(container)
                 .background(WindowAccessor())
-                .frame(minWidth: 500, maxWidth: .infinity, minHeight: 400, maxHeight: .infinity)
+                .frame(minWidth: 780, maxWidth: .infinity, minHeight: 520, maxHeight: .infinity)
         }
         .windowToolbarStyle(.unified)
         .defaultSize(width: 1200, height: 800)
