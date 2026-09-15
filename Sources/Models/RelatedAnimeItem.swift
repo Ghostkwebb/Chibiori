@@ -44,24 +44,51 @@ public struct RelatedAnimeItem: Identifiable, Sendable, Codable, Equatable, Hash
         self.synopsis = synopsis
     }
 
+    public func copy(withRelationType newType: String) -> RelatedAnimeItem {
+        RelatedAnimeItem(
+            malID: malID,
+            relationType: newType,
+            title: title,
+            englishTitle: englishTitle,
+            japaneseTitle: japaneseTitle,
+            coverImageURL: coverImageURL,
+            format: format,
+            status: status,
+            episodes: episodes,
+            season: season,
+            seasonYear: seasonYear,
+            synopsis: synopsis
+        )
+    }
+
     public var priorityRank: Int {
         switch relationType.uppercased() {
+        case "CURRENT": return -1
         case "PREQUEL": return 0
         case "SEQUEL": return 1
-        case "PARENT": return 2
-        case "SIDE_STORY": return 3
-        case "SPIN_OFF": return 4
-        case "ALTERNATIVE": return 5
-        default: return 6
+        case "MAIN_STORY", "SEASON": return 2
+        case "PARENT": return 3
+        case "MOVIE": return 4
+        case "SIDE_STORY", "OVA", "ONA", "SPECIAL": return 5
+        case "SPIN_OFF": return 6
+        case "ALTERNATIVE": return 7
+        default: return 8
         }
     }
 
     public var relationDisplayName: String {
         switch relationType.uppercased() {
+        case "CURRENT": return "Current"
         case "PREQUEL": return "Prequel"
         case "SEQUEL": return "Sequel"
+        case "MAIN_STORY": return "Main Story"
+        case "SEASON": return "Season"
+        case "MOVIE": return "Movie"
         case "PARENT": return "Parent Story"
         case "SIDE_STORY": return "Side Story"
+        case "OVA": return "OVA"
+        case "ONA": return "ONA"
+        case "SPECIAL": return "Special"
         case "SPIN_OFF": return "Spin-Off"
         case "ALTERNATIVE": return "Alternative"
         case "CHARACTER": return "Character"
@@ -72,10 +99,13 @@ public struct RelatedAnimeItem: Identifiable, Sendable, Codable, Equatable, Hash
 
     public var relationIcon: String {
         switch relationType.uppercased() {
+        case "CURRENT": return "sparkles"
         case "PREQUEL": return "arrow.left.circle.fill"
         case "SEQUEL": return "arrow.right.circle.fill"
+        case "MAIN_STORY", "SEASON": return "play.tv.fill"
+        case "MOVIE": return "film.fill"
         case "PARENT": return "book.fill"
-        case "SIDE_STORY": return "rectangle.stack.fill"
+        case "SIDE_STORY", "OVA", "ONA", "SPECIAL": return "rectangle.stack.fill"
         case "SPIN_OFF": return "arrow.triangle.branch"
         default: return "link"
         }
@@ -83,10 +113,13 @@ public struct RelatedAnimeItem: Identifiable, Sendable, Codable, Equatable, Hash
 
     public var badgeColor: Color {
         switch relationType.uppercased() {
+        case "CURRENT": return Color.yellow
         case "PREQUEL": return Color.blue
         case "SEQUEL": return Color.purple
+        case "MAIN_STORY", "SEASON": return Color.indigo
+        case "MOVIE": return Color.pink
         case "PARENT": return Color.indigo
-        case "SIDE_STORY": return Color.teal
+        case "SIDE_STORY", "OVA", "ONA", "SPECIAL": return Color.teal
         case "SPIN_OFF": return Color.orange
         default: return Color.secondary
         }

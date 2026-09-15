@@ -10,6 +10,8 @@ DerivedData/
 *.app/
 *.dSYM.zip
 *.dSYM
+*.dmg
+*.zip
 
 # macOS System Files
 .DS_Store

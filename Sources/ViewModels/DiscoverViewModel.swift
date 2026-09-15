@@ -72,8 +72,8 @@ public final class DiscoverViewModel {
         errorMessage = nil
 
         searchTask = Task {
-            // Debounce delay
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            // Debounce delay to prevent spamming while typing
+            try? await Task.sleep(nanoseconds: 500_000_000)
             guard !Task.isCancelled else { return }
 
             do {

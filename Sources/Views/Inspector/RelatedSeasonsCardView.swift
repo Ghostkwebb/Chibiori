@@ -7,9 +7,22 @@ public struct RelatedSeasonsCardView: View {
     @Query private var allTrackedAnime: [TrackedAnime]
 
     let relatedAnime: [RelatedAnimeItem]
+    let currentMalID: Int
+    let currentTitle: String
+    let currentEnglishTitle: String?
 
-    public init(relatedAnime: [RelatedAnimeItem]) {
+    @State private var showFranchiseHub = false
+
+    public init(
+        relatedAnime: [RelatedAnimeItem],
+        currentMalID: Int = 0,
+        currentTitle: String = "",
+        currentEnglishTitle: String? = nil
+    ) {
         self.relatedAnime = relatedAnime
+        self.currentMalID = currentMalID
+        self.currentTitle = currentTitle
+        self.currentEnglishTitle = currentEnglishTitle
     }
 
     public var body: some View {
@@ -25,6 +38,29 @@ public struct RelatedSeasonsCardView: View {
                     .foregroundStyle(.secondary)
 
                 Spacer()
+
+                if !currentTitle.isEmpty || currentMalID > 0 {
+                    Button {
+                        showFranchiseHub = true
+                    } label: {
+                        HStack(spacing: 3) {
+                            Text("Explore")
+                                .font(.system(size: 9.5, weight: .semibold))
+                            Image(systemName: "arrow.up.forward.app")
+                                .font(.system(size: 8.5))
+                        }
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Color.purple.opacity(0.18))
+                        .foregroundStyle(Color.purple)
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule().stroke(Color.purple.opacity(0.35), lineWidth: 0.8)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .help("View full franchise releases and spin-offs")
+                }
 
                 Text("\(relatedAnime.count)")
                     .font(.system(size: 9.5, weight: .bold))
@@ -51,6 +87,13 @@ public struct RelatedSeasonsCardView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showFranchiseHub) {
+            FranchiseHubSheetView(
+                currentMalID: currentMalID,
+                currentTitle: currentTitle,
+                currentEnglishTitle: currentEnglishTitle
+            )
         }
     }
 }

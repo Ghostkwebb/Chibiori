@@ -17,8 +17,16 @@ public struct GitHubRelease: Codable, Identifiable, Sendable, Equatable {
     public let html_url: String
     public let assets: [GitHubReleaseAsset]
 
+    public var updateAsset: GitHubReleaseAsset? {
+        assets.first { $0.name.hasSuffix(".zip") } ?? assets.first { $0.name.hasSuffix(".dmg") }
+    }
+
     public var zipAsset: GitHubReleaseAsset? {
         assets.first { $0.name.hasSuffix(".zip") }
+    }
+
+    public var dmgAsset: GitHubReleaseAsset? {
+        assets.first { $0.name.hasSuffix(".dmg") }
     }
 }
 
@@ -122,26 +130,27 @@ public final class UpdateManager: NSObject {
         return false
     }
 
-    /// Downloads, unzips, replaces the app bundle, and relaunches
+    /// Downloads, unpacks (.zip or .dmg), replaces the app bundle, and relaunches
     public func downloadAndInstallUpdate(release: GitHubRelease) {
-        guard let asset = release.zipAsset,
+        guard let asset = release.updateAsset,
               let downloadURL = URL(string: asset.browser_download_url) else {
-            // Fallback: open release page in browser if no zip asset is attached
+            // Fallback: open release page in browser if no update asset is attached
             if let webURL = URL(string: release.html_url) {
                 NSWorkspace.shared.open(webURL)
             }
             return
         }
 
+        let isDmg = asset.name.hasSuffix(".dmg")
         self.state = .downloading(progress: 0.0)
 
         Task.detached(priority: .userInitiated) {
             do {
                 let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("Chibiori_Update_\(UUID().uuidString)")
                 try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-                let zipDest = tempDir.appendingPathComponent("Chibiori.zip")
+                let downloadDest = tempDir.appendingPathComponent(asset.name)
 
-                // Download zip file
+                // Download archive or disk image
                 var request = URLRequest(url: downloadURL)
                 request.setValue("Chibiori-macOS-Updater/1.0", forHTTPHeaderField: "User-Agent")
 
@@ -150,26 +159,69 @@ public final class UpdateManager: NSObject {
                     throw NSError(domain: "Update", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to download update bundle"])
                 }
 
-                try FileManager.default.moveItem(at: tempDownloadedURL, to: zipDest)
+                try FileManager.default.moveItem(at: tempDownloadedURL, to: downloadDest)
 
                 await MainActor.run {
                     self.state = .extracting
                 }
 
-                // Unzip using /usr/bin/ditto (preserves macOS app metadata and symlinks)
-                let extractProcess = Process()
-                extractProcess.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-                extractProcess.arguments = ["-xk", zipDest.path, tempDir.path]
-                try extractProcess.run()
-                extractProcess.waitUntilExit()
+                let newAppURL = tempDir.appendingPathComponent("Chibiori.app")
 
-                guard extractProcess.terminationStatus == 0 else {
-                    throw NSError(domain: "Update", code: 4, userInfo: [NSLocalizedDescriptionKey: "Failed to extract update package"])
+                if isDmg {
+                    // Mount DMG without browsing/GUI
+                    let mountPoint = tempDir.appendingPathComponent("MountPoint")
+                    try FileManager.default.createDirectory(at: mountPoint, withIntermediateDirectories: true)
+
+                    let mountProcess = Process()
+                    mountProcess.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+                    mountProcess.arguments = ["attach", downloadDest.path, "-nobrowse", "-readonly", "-mountpoint", mountPoint.path]
+                    try mountProcess.run()
+                    mountProcess.waitUntilExit()
+
+                    defer {
+                        // Ensure DMG is unmounted
+                        let detachProcess = Process()
+                        detachProcess.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+                        detachProcess.arguments = ["detach", mountPoint.path, "-force"]
+                        try? detachProcess.run()
+                        detachProcess.waitUntilExit()
+                    }
+
+                    guard mountProcess.terminationStatus == 0 else {
+                        throw NSError(domain: "Update", code: 4, userInfo: [NSLocalizedDescriptionKey: "Failed to mount update disk image"])
+                    }
+
+                    // Locate Chibiori.app on mounted volume
+                    let mountedAppURL = mountPoint.appendingPathComponent("Chibiori.app")
+                    guard FileManager.default.fileExists(atPath: mountedAppURL.path) else {
+                        throw NSError(domain: "Update", code: 5, userInfo: [NSLocalizedDescriptionKey: "Disk image does not contain Chibiori.app"])
+                    }
+
+                    // Copy Chibiori.app out of the DMG using ditto
+                    let copyProcess = Process()
+                    copyProcess.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+                    copyProcess.arguments = [mountedAppURL.path, newAppURL.path]
+                    try copyProcess.run()
+                    copyProcess.waitUntilExit()
+
+                    guard copyProcess.terminationStatus == 0 else {
+                        throw NSError(domain: "Update", code: 6, userInfo: [NSLocalizedDescriptionKey: "Failed to copy application from disk image"])
+                    }
+                } else {
+                    // Unzip using /usr/bin/ditto (preserves macOS app metadata and symlinks)
+                    let extractProcess = Process()
+                    extractProcess.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+                    extractProcess.arguments = ["-xk", downloadDest.path, tempDir.path]
+                    try extractProcess.run()
+                    extractProcess.waitUntilExit()
+
+                    guard extractProcess.terminationStatus == 0 else {
+                        throw NSError(domain: "Update", code: 4, userInfo: [NSLocalizedDescriptionKey: "Failed to extract update package"])
+                    }
                 }
 
-                let newAppURL = tempDir.appendingPathComponent("Chibiori.app")
                 guard FileManager.default.fileExists(atPath: newAppURL.path) else {
-                    throw NSError(domain: "Update", code: 5, userInfo: [NSLocalizedDescriptionKey: "Extracted archive does not contain Chibiori.app"])
+                    throw NSError(domain: "Update", code: 7, userInfo: [NSLocalizedDescriptionKey: "Update payload does not contain Chibiori.app"])
                 }
 
                 // Strip quarantine attribute

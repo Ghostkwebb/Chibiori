@@ -251,6 +251,11 @@ public final class SmokeTestRunner {
             guard results[0].malId > 0 && !results[0].title.isEmpty else {
                 throw NSError(domain: "Test", code: 51, userInfo: [NSLocalizedDescriptionKey: "Malformed DTO fields"])
             }
+
+            let searchRes = try await JikanAPIService.shared.fetchSearchResults(query: "The daily life of the immortal king")
+            guard !searchRes.isEmpty else {
+                throw NSError(domain: "Test", code: 52, userInfo: [NSLocalizedDescriptionKey: "Search results should not be empty for Immortal King"])
+            }
         }
 
         // Test 7: MyAnimeList (MAL) XML Parser with Status Filter
@@ -377,7 +382,7 @@ public final class SmokeTestRunner {
         }
 
         // Test 11: UpdateManager Semantic Versioning & GitHub Releases Comparison
-        check("UpdateManager semver comparison logic") {
+        check("UpdateManager semver comparison logic and asset resolution (.zip and .dmg)") {
             guard UpdateManager.isVersion("v1.0.1", newerThan: "1.0.0") else {
                 throw NSError(domain: "Test", code: 100, userInfo: [NSLocalizedDescriptionKey: "Failed: v1.0.1 should be newer than 1.0.0"])
             }
@@ -389,6 +394,39 @@ public final class SmokeTestRunner {
             }
             guard !UpdateManager.isVersion("v0.9.5", newerThan: "1.0.0") else {
                 throw NSError(domain: "Test", code: 103, userInfo: [NSLocalizedDescriptionKey: "Failed: v0.9.5 is not newer than 1.0.0"])
+            }
+
+            // Test DMG-only release asset resolution
+            let dmgRelease = GitHubRelease(
+                tag_name: "v1.0.14",
+                name: "Chibiori v1.0.14",
+                body: "Notes",
+                published_at: "2026-09-15",
+                html_url: "https://github.com/Ghostkwebb/Chibiori/releases/tag/v1.0.14",
+                assets: [
+                    GitHubReleaseAsset(name: "Chibiori-1.0.14.dmg", browser_download_url: "https://example.com/Chibiori.dmg", size: 1024)
+                ]
+            )
+            guard dmgRelease.updateAsset?.name == "Chibiori-1.0.14.dmg" else {
+                throw NSError(domain: "Test", code: 104, userInfo: [NSLocalizedDescriptionKey: "DMG-only release must resolve updateAsset"])
+            }
+            guard dmgRelease.dmgAsset?.name == "Chibiori-1.0.14.dmg" else {
+                throw NSError(domain: "Test", code: 105, userInfo: [NSLocalizedDescriptionKey: "DMG-only release must resolve dmgAsset"])
+            }
+
+            // Test ZIP-only release asset resolution
+            let zipRelease = GitHubRelease(
+                tag_name: "v1.0.13",
+                name: "Chibiori v1.0.13",
+                body: "Notes",
+                published_at: "2026-09-14",
+                html_url: "https://github.com/Ghostkwebb/Chibiori/releases/tag/v1.0.13",
+                assets: [
+                    GitHubReleaseAsset(name: "Chibiori.zip", browser_download_url: "https://example.com/Chibiori.zip", size: 1024)
+                ]
+            )
+            guard zipRelease.updateAsset?.name == "Chibiori.zip" else {
+                throw NSError(domain: "Test", code: 106, userInfo: [NSLocalizedDescriptionKey: "ZIP-only release must resolve updateAsset"])
             }
         }
 
@@ -618,8 +656,8 @@ public final class SmokeTestRunner {
             }
         }
 
-        // Test 16: AnimeRelationsService cache and retrieval
-        await checkAsync("AnimeRelationsService caching and retrieval") {
+        // Test 16: AnimeRelationsService cache, disk persistence, and franchise discovery
+        await checkAsync("AnimeRelationsService caching, disk persistence, and franchise discovery") {
             let mockItem = RelatedAnimeItem(
                 malID: 58567,
                 relationType: "SEQUEL",
@@ -632,16 +670,65 @@ public final class SmokeTestRunner {
                 seasonYear: 2025
             )
 
+            // Cache to in-memory + disk
             AnimeRelationsService.shared.setCachedRelations([mockItem], for: 52299)
-            let fetched = await AnimeRelationsService.shared.fetchRelations(for: 52299)
 
-            guard fetched.count == 1, fetched.first?.malID == 58567 else {
-                throw NSError(domain: "Test", code: 150, userInfo: [NSLocalizedDescriptionKey: "AnimeRelationsService failed to return cached relations"])
+            // Clear in-memory cache to verify disk loading
+            AnimeRelationsService.shared.clearCache()
+            let fetchedFromDisk = await AnimeRelationsService.shared.fetchRelations(for: 52299)
+            guard fetchedFromDisk.count == 1, fetchedFromDisk.first?.malID == 58567 else {
+                throw NSError(domain: "Test", code: 150, userInfo: [NSLocalizedDescriptionKey: "AnimeRelationsService failed to load cached relations from disk"])
             }
 
             let empty = await AnimeRelationsService.shared.fetchRelations(for: -1)
             guard empty.isEmpty else {
-                throw NSError(domain: "Test", code: 151, userInfo: [NSLocalizedDescriptionKey: "AnimeRelationsService should return empty for invalid ID"])
+                throw NSError(domain: "Test", code: 151, userInfo: [NSLocalizedDescriptionKey: "AnimeRelationsService should return empty for invalid ID without title"])
+            }
+
+            // Test local library franchise cross-discovery (e.g. Makeine Season 1 & 2)
+            let makeine1 = TrackedAnime(
+                malID: 57524,
+                title: "Makeine: Too Many Losing Heroines!",
+                synopsis: "Kazuhiko Nukumizu meets losing heroines.",
+                coverImageRemoteURL: "",
+                airingStatusRaw: "Finished Airing",
+                englishTitle: "Makeine: Too Many Losing Heroines!",
+                seasonYear: "Summer 2024"
+            )
+            let makeine2 = TrackedAnime(
+                malID: 61398,
+                title: "Makeine: Too Many Losing Heroines! Season 2",
+                synopsis: "Season 2 announcement.",
+                coverImageRemoteURL: "",
+                airingStatusRaw: "Not Yet Aired",
+                englishTitle: "Makeine: Too Many Losing Heroines! Season 2",
+                seasonYear: "2025"
+            )
+
+            let relsForS2 = AnimeRelationsService.shared.discoverLibraryFranchiseRelations(for: makeine2, allLibrary: [makeine1, makeine2])
+            guard relsForS2.contains(where: { $0.malID == 57524 && $0.relationType == "PREQUEL" }) else {
+                throw NSError(domain: "Test", code: 152, userInfo: [NSLocalizedDescriptionKey: "Makeine S2 should discover S1 as PREQUEL: \(relsForS2)"])
+            }
+
+            let relsForS1 = AnimeRelationsService.shared.discoverLibraryFranchiseRelations(for: makeine1, allLibrary: [makeine1, makeine2])
+            guard relsForS1.contains(where: { $0.malID == 61398 && $0.relationType == "SEQUEL" }) else {
+                throw NSError(domain: "Test", code: 153, userInfo: [NSLocalizedDescriptionKey: "Makeine S1 should discover S2 as SEQUEL: \(relsForS1)"])
+            }
+
+            // Test live fetching for Makeine Season 2 (61398) to verify AniList GQL & parsing
+            let makeineRels = await AnimeRelationsService.shared.fetchRelations(for: 61398, title: "Makeine: Too Many Losing Heroines! Season 2", forceRefresh: true)
+            guard makeineRels.contains(where: { $0.malID == 57524 && $0.relationType == "PREQUEL" }) else {
+                throw NSError(domain: "Test", code: 154, userInfo: [NSLocalizedDescriptionKey: "Makeine S2 live relations should include S1 (57524) as PREQUEL"])
+            }
+
+            // Test live fetching for Slime S2 (39551)
+            let slimeRels = await AnimeRelationsService.shared.fetchRelations(for: 39551, title: "That Time I Got Reincarnated as a Slime Season 2", forceRefresh: true)
+            print("DEBUG: Slime S2 relations count: \(slimeRels.count)")
+            for r in slimeRels {
+                print("  -> \(r.relationType): \(r.title) (\(r.malID))")
+            }
+            guard !slimeRels.isEmpty else {
+                throw NSError(domain: "Test", code: 155, userInfo: [NSLocalizedDescriptionKey: "Slime S2 should return relations"])
             }
         }
 
@@ -747,6 +834,37 @@ public final class SmokeTestRunner {
             }
             guard codes.contains("HI") else {
                 throw NSError(domain: "Test", code: 194, userInfo: [NSLocalizedDescriptionKey: "Slime S2 dubs must include Hindi (HI). Found: \(codes)"])
+            }
+        }
+
+        // Test 21: AnimeRelationsService Franchise Hub Discovery and Categorization
+        await checkAsync("AnimeRelationsService fetchFullFranchise returns seasons, movies, and spin-offs") {
+            let franchise = await AnimeRelationsService.shared.fetchFullFranchise(
+                malID: 39551, // Slime Season 2
+                title: "Tensei Shitara Slime Datta Ken 2nd Season",
+                englishTitle: "That Time I Got Reincarnated as a Slime Season 2"
+            )
+
+            guard !franchise.isEmpty else {
+                throw NSError(domain: "Test", code: 200, userInfo: [NSLocalizedDescriptionKey: "Slime franchise should return non-empty items"])
+            }
+
+            guard franchise.count >= 5 else {
+                throw NSError(domain: "Test", code: 201, userInfo: [NSLocalizedDescriptionKey: "Slime franchise should have at least 5 entries, found \(franchise.count)"])
+            }
+
+            let formats = Set(franchise.compactMap { $0.format?.uppercased() })
+            guard formats.contains("TV") else {
+                throw NSError(domain: "Test", code: 202, userInfo: [NSLocalizedDescriptionKey: "Franchise should contain TV format entries"])
+            }
+
+            guard franchise.contains(where: { $0.relationType == "CURRENT" && $0.malID == 39551 }) else {
+                throw NSError(domain: "Test", code: 203, userInfo: [NSLocalizedDescriptionKey: "Franchise must have item marked CURRENT for malID 39551"])
+            }
+
+            let hasMovie = franchise.contains(where: { $0.relationType == "MOVIE" || $0.format == "MOVIE" })
+            guard hasMovie else {
+                throw NSError(domain: "Test", code: 204, userInfo: [NSLocalizedDescriptionKey: "Slime franchise must contain movies (e.g. Scarlet Bond)"])
             }
         }
 

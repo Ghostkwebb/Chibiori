@@ -5,6 +5,7 @@ public actor JikanAPIService {
 
     private var lastRequestTime: Date = .distantPast
     private let minimumInterval: TimeInterval = 0.35 // 350ms throttle (~2.8 req/sec max)
+    private var searchCache: [String: [JikanAnimeDTO]] = [:]
     private let session: URLSession
 
     public init(session: URLSession = .shared) {
@@ -13,19 +14,33 @@ public actor JikanAPIService {
 
     // MARK: - Search
     public func fetchSearchResults(query: String, page: Int = 1) async throws -> [JikanAnimeDTO] {
-        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        let cleanQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanQuery.isEmpty else {
             return []
         }
-        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let cacheKey = "\(cleanQuery.lowercased())_p\(page)"
+        if let cached = searchCache[cacheKey], !cached.isEmpty {
+            return cached
+        }
+
+        let encodedQuery = cleanQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         guard let url = URL(string: "https://api.jikan.moe/v4/anime?q=\(encodedQuery)&page=\(page)") else {
             throw APIError.invalidURL
         }
 
         do {
-            return try await executeRequest(url: url)
+            let res = try await executeRequest(url: url)
+            if !res.isEmpty {
+                searchCache[cacheKey] = res
+            }
+            return res
         } catch {
             print("⚠️ Jikan search failed (\(error.localizedDescription)), falling back to AniList API...")
-            return try await fetchAniListSearch(query: query, page: page)
+            let res = try await fetchAniListSearch(query: cleanQuery, page: page)
+            if !res.isEmpty {
+                searchCache[cacheKey] = res
+            }
+            return res
         }
     }
 
@@ -269,7 +284,7 @@ public actor JikanAPIService {
         return try await executeAniListGraphQL(query: gql, variables: ["p": page, "per": 25, "sort": sortParam])
     }
 
-    private func executeAniListGraphQL(query: String, variables: [String: Any]) async throws -> [JikanAnimeDTO] {
+    private func executeAniListGraphQL(query: String, variables: [String: Any], retryCount: Int = 1) async throws -> [JikanAnimeDTO] {
         guard let url = URL(string: "https://graphql.anilist.co") else { throw APIError.invalidURL }
         var request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 10.0)
         request.httpMethod = "POST"
@@ -281,8 +296,21 @@ public actor JikanAPIService {
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
 
         let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw APIError.invalidResponse(statusCode: (response as? HTTPURLResponse)?.statusCode ?? -1)
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse(statusCode: -1)
+        }
+
+        if http.statusCode == 429 {
+            if retryCount > 0 {
+                try? await Task.sleep(nanoseconds: 800_000_000)
+                return try await executeAniListGraphQL(query: query, variables: variables, retryCount: retryCount - 1)
+            } else {
+                throw APIError.rateLimited
+            }
+        }
+
+        guard http.statusCode == 200 else {
+            throw APIError.invalidResponse(statusCode: http.statusCode)
         }
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],

@@ -12,9 +12,12 @@ public enum APIError: Error, LocalizedError {
         case .invalidURL:
             return "Invalid request URL."
         case .invalidResponse(let code):
+            if code == 429 {
+                return "Anime database is temporarily rate-limiting requests. Please wait a moment and tap Retry."
+            }
             return "Server responded with status code \(code)."
         case .rateLimited:
-            return "Rate limited by Jikan API. Please try again in a moment."
+            return "Anime database is temporarily rate-limiting requests. Please wait a moment and tap Retry."
         case .decodingError(let error):
             return "Failed to decode response: \(error.localizedDescription)"
         case .networkError(let error):

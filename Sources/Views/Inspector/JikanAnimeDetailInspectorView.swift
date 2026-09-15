@@ -24,9 +24,14 @@ public struct JikanAnimeDetailInspectorView: View {
 
                 // Related Seasons (Prequels / Sequels)
                 if !relatedAnime.isEmpty {
-                    RelatedSeasonsCardView(relatedAnime: relatedAnime)
-                        .padding(14)
-                        .glassCard(cornerRadius: 14)
+                    RelatedSeasonsCardView(
+                        relatedAnime: relatedAnime,
+                        currentMalID: dto.malId,
+                        currentTitle: dto.title,
+                        currentEnglishTitle: dto.titleEnglish
+                    )
+                    .padding(14)
+                    .glassCard(cornerRadius: 14)
                 }
 
                 // Track Anime Action Card
@@ -50,7 +55,7 @@ public struct JikanAnimeDetailInspectorView: View {
         }
         .frame(minWidth: 300, idealWidth: 350, maxWidth: 440)
         .task(id: dto.malId) {
-            async let rels = AnimeRelationsService.shared.fetchRelations(for: dto.malId)
+            async let rels = AnimeRelationsService.shared.fetchRelations(for: dto.malId, title: dto.title)
             async let dubs = DubbedLanguageService.shared.fetchDubbedLanguages(malId: dto.malId)
             relatedAnime = await rels
             loadedDubbedLanguages = await dubs

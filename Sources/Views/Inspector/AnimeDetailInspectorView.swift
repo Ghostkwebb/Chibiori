@@ -5,6 +5,7 @@ import SwiftData
 public struct AnimeDetailInspectorView: View {
     @Environment(NavigationState.self) private var navState
     @Environment(\.modelContext) private var modelContext
+    @Query private var allLibraryAnime: [TrackedAnime]
     @Bindable var anime: TrackedAnime
     let onDelete: () -> Void
 
@@ -39,9 +40,14 @@ public struct AnimeDetailInspectorView: View {
 
                 // Related Seasons (Prequels / Sequels)
                 if !relatedAnime.isEmpty {
-                    RelatedSeasonsCardView(relatedAnime: relatedAnime)
-                        .padding(14)
-                        .glassCard(cornerRadius: 14)
+                    RelatedSeasonsCardView(
+                        relatedAnime: relatedAnime,
+                        currentMalID: anime.malID,
+                        currentTitle: anime.title,
+                        currentEnglishTitle: anime.englishTitle
+                    )
+                    .padding(14)
+                    .glassCard(cornerRadius: 14)
                 }
 
                 // Watch Status & Queue Actions
@@ -138,7 +144,12 @@ public struct AnimeDetailInspectorView: View {
             Text("Are you sure you want to remove \"\(anime.title)\" from your local library? This action cannot be undone.")
         }
         .task(id: anime.malID) {
-            relatedAnime = await AnimeRelationsService.shared.fetchRelations(for: anime.malID)
+            var rels = await AnimeRelationsService.shared.fetchRelations(for: anime.malID, title: anime.title)
+            if rels.isEmpty {
+                let library = !allLibraryAnime.isEmpty ? allLibraryAnime : ((try? modelContext.fetch(FetchDescriptor<TrackedAnime>())) ?? [])
+                rels = AnimeRelationsService.shared.discoverLibraryFranchiseRelations(for: anime, allLibrary: library)
+            }
+            relatedAnime = rels
             let dubs = await DubbedLanguageService.shared.fetchDubbedLanguages(malId: anime.malID)
             if !dubs.isEmpty {
                 let existingLower = Set(anime.dubbedLanguages.map { $0.lowercased() })
@@ -152,6 +163,14 @@ public struct AnimeDetailInspectorView: View {
                         anime.dubbedLanguages = merged
                         try? modelContext.save()
                     }
+                }
+            }
+        }
+        .onChange(of: allLibraryAnime) { _, newLibrary in
+            if relatedAnime.isEmpty && !newLibrary.isEmpty {
+                let localRels = AnimeRelationsService.shared.discoverLibraryFranchiseRelations(for: anime, allLibrary: newLibrary)
+                if !localRels.isEmpty {
+                    relatedAnime = localRels
                 }
             }
         }
@@ -220,9 +239,7 @@ public struct AnimeDetailInspectorView: View {
 
                     Button {
                         Task {
-                            isRefreshing = true
-                            await MetadataHydrationService.shared.refreshAnimeMetadata(anime: anime, context: modelContext)
-                            isRefreshing = false
+                            await refreshAllData(forceRefreshRelations: true)
                         }
                     } label: {
                         Image(systemName: "arrow.clockwise")
@@ -236,7 +253,7 @@ public struct AnimeDetailInspectorView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(isRefreshing)
-                    .help("Refresh anime status, episode count, score & metadata")
+                    .help("Refresh anime status, episode count, score, relations & metadata")
                 }
                 .padding(.vertical, 2)
 
@@ -486,9 +503,7 @@ public struct AnimeDetailInspectorView: View {
 
                 Button {
                     Task {
-                        isRefreshing = true
-                        await MetadataHydrationService.shared.refreshAnimeMetadata(anime: anime, context: modelContext)
-                        isRefreshing = false
+                        await refreshAllData(forceRefreshRelations: true)
                     }
                 } label: {
                     HStack(spacing: 4) {
@@ -743,5 +758,32 @@ public struct AnimeDetailInspectorView: View {
         }
         .padding(20)
         .frame(width: 460, height: 390)
+    }
+
+    private func refreshAllData(forceRefreshRelations: Bool = false) async {
+        isRefreshing = true
+        await MetadataHydrationService.shared.refreshAnimeMetadata(anime: anime, context: modelContext)
+        var rels = await AnimeRelationsService.shared.fetchRelations(for: anime.malID, title: anime.title, forceRefresh: forceRefreshRelations)
+        if rels.isEmpty {
+            let library = !allLibraryAnime.isEmpty ? allLibraryAnime : ((try? modelContext.fetch(FetchDescriptor<TrackedAnime>())) ?? [])
+            rels = AnimeRelationsService.shared.discoverLibraryFranchiseRelations(for: anime, allLibrary: library)
+        }
+        relatedAnime = rels
+        let dubs = await DubbedLanguageService.shared.fetchDubbedLanguages(malId: anime.malID)
+        if !dubs.isEmpty {
+            let existingLower = Set(anime.dubbedLanguages.map { $0.lowercased() })
+            let newNames = dubs.map { $0.name }
+            if anime.dubbedLanguages.isEmpty || (!existingLower.contains("english") && newNames.contains("English")) {
+                var merged = anime.dubbedLanguages
+                for name in newNames where !existingLower.contains(name.lowercased()) {
+                    merged.append(name)
+                }
+                if merged != anime.dubbedLanguages {
+                    anime.dubbedLanguages = merged
+                    try? modelContext.save()
+                }
+            }
+        }
+        isRefreshing = false
     }
 }
