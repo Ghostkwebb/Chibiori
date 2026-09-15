@@ -132,6 +132,12 @@ public struct LibraryContainerView: View {
                     await hydrationService.hydrateMissingMetadata(context: modelContext)
                 }
             }
+            let items = filteredAnime.prefix(50).map { ($0.malID, $0.coverImageRemoteURL, $0.coverImageFilename) }
+            CoverImageManager.shared.prefetchCovers(items: items)
+        }
+        .onChange(of: filteredAnime.count) {
+            let items = filteredAnime.prefix(50).map { ($0.malID, $0.coverImageRemoteURL, $0.coverImageFilename) }
+            CoverImageManager.shared.prefetchCovers(items: items)
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {

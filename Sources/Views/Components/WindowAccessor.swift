@@ -19,9 +19,8 @@ private final class WindowObservingView: NSView {
         super.viewDidMoveToWindow()
         guard let window = self.window else { return }
 
-        // Optimize window performance for buttery smooth 120Hz Spaces & Mission Control swipes
-        window.isOpaque = true
-        window.backgroundColor = NSColor.windowBackgroundColor
+        // Enable native macOS Liquid Glass vibrancy, specular traffic lights, and 120Hz window rendering
+        window.titlebarAppearsTransparent = true
         window.hasShadow = true
         window.collectionBehavior = [.managed, .participatesInCycle, .fullScreenPrimary]
         window.animationBehavior = .default

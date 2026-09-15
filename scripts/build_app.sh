@@ -4,9 +4,14 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 cd "$DIR"
 
-echo "🔨 Building Chibiori Release Binary..."
+echo "🔨 Building Chibiori Release Binary with macOS 27 Liquid Glass support..."
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-swift build -c release
+SDK_PATH=$(xcrun --show-sdk-path 2>/dev/null || echo "")
+if [ -n "$SDK_PATH" ]; then
+    swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx27.0 -Xswiftc -sdk -Xswiftc "$SDK_PATH"
+else
+    swift build -c release
+fi
 
 APP_NAME="Chibiori.app"
 APP_PATH="$DIR/$APP_NAME"
@@ -75,6 +80,12 @@ cat << 'EOF' > "$CONTENTS/Info.plist"
     <string>15</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
+    <key>DTSDKName</key>
+    <string>macosx27.0</string>
+    <key>DTPlatformVersion</key>
+    <string>27.0</string>
+    <key>DTXcode</key>
+    <string>2700</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSSupportsAutomaticGraphicsSwitching</key>

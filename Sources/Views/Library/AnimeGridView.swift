@@ -9,7 +9,7 @@ public struct AnimeGridView: View {
     @Binding var selectedAnimeID: PersistentIdentifier?
 
     @FocusState private var isFocused: Bool
-    @State private var availableWidth: CGFloat = 800
+    @State private var exactColumnsCount: Int = 4
 
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: navState.gridCardSize, maximum: navState.gridCardSize * 1.3), spacing: 16)]
@@ -18,15 +18,6 @@ public struct AnimeGridView: View {
     public init(animes: [TrackedAnime], selectedAnimeID: Binding<PersistentIdentifier?>) {
         self.animes = animes
         self._selectedAnimeID = selectedAnimeID
-    }
-
-    private var exactColumnsCount: Int {
-        let spacing: CGFloat = 16
-        let padding: CGFloat = 32 // 16 left + 16 right
-        let contentWidth = max(0, availableWidth - padding)
-        let minCardWidth = navState.gridCardSize
-        let count = Int((contentWidth + spacing) / (minCardWidth + spacing))
-        return max(1, count)
     }
 
     public var body: some View {
@@ -51,12 +42,19 @@ public struct AnimeGridView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 GeometryReader { geo in
+                    let spacing: CGFloat = 16
+                    let padding: CGFloat = 32
+                    let contentWidth = max(0, geo.size.width - padding)
+                    let minCardWidth = navState.gridCardSize
+                    let calculatedCount = max(1, Int((contentWidth + spacing) / (minCardWidth + spacing)))
                     Color.clear
-                        .preference(key: GridWidthPreferenceKey.self, value: geo.size.width)
+                        .preference(key: GridColumnCountPreferenceKey.self, value: calculatedCount)
                 }
             )
-            .onPreferenceChange(GridWidthPreferenceKey.self) { newWidth in
-                availableWidth = newWidth
+            .onPreferenceChange(GridColumnCountPreferenceKey.self) { newCount in
+                if exactColumnsCount != newCount {
+                    exactColumnsCount = newCount
+                }
             }
             .smooth120HzScroll()
             .focusable()
@@ -87,9 +85,9 @@ public struct AnimeGridView: View {
         }
     }
 
-    private struct GridWidthPreferenceKey: PreferenceKey {
-        static var defaultValue: CGFloat = 800
-        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+    private struct GridColumnCountPreferenceKey: PreferenceKey {
+        static var defaultValue: Int = 4
+        static func reduce(value: inout Int, nextValue: () -> Int) {
             value = nextValue()
         }
     }

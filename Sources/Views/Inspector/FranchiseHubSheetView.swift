@@ -213,18 +213,24 @@ public struct FranchiseHubSheetView: View {
         }
     }
 
+    private var trackedLookup: [Int: TrackedAnime] {
+        Dictionary(allTrackedAnime.map { ($0.malID, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
     // MARK: - List View
     private var itemsListView: some View {
-        ScrollView {
+        let lookup = trackedLookup
+        return ScrollView {
             LazyVStack(spacing: 6) {
                 ForEach(filteredItems) { item in
+                    let match = lookup[item.malID]
                     FranchiseItemRow(
                         item: item,
                         isCurrent: item.malID == currentMalID,
-                        trackedMatch: allTrackedAnime.first(where: { $0.malID == item.malID }),
+                        trackedMatch: match,
                         titlePreference: navState.titleLanguagePreference,
                         onInspect: {
-                            if let match = allTrackedAnime.first(where: { $0.malID == item.malID }) {
+                            if let match {
                                 navState.selectTracked(match.persistentModelID)
                             } else {
                                 navState.selectDTO(item.asJikanDTO)
@@ -237,6 +243,7 @@ public struct FranchiseHubSheetView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
+        .smooth120HzScroll()
     }
 
     // MARK: - Loading View

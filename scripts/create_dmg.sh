@@ -20,7 +20,8 @@ mkdir -p "$STAGING_DIR"
 cp -R "$APP_PATH" "$STAGING_DIR/"
 
 if command -v create-dmg &> /dev/null; then
-    create-dmg \
+    echo "💿 Running create-dmg with custom volume icon..."
+    if ! create-dmg \
         --volname "Chibiori" \
         --volicon "$ICON_PATH" \
         --window-pos 200 120 \
@@ -32,7 +33,16 @@ if command -v create-dmg &> /dev/null; then
         --no-internet-enable \
         --overwrite \
         "$DMG_PATH" \
-        "$STAGING_DIR"
+        "$STAGING_DIR"; then
+        echo "⚠️  Finder AppleScript failed (macOS 27 Finder sandboxing). Retrying with --skip-jenkins..."
+        create-dmg \
+            --volname "Chibiori" \
+            --volicon "$ICON_PATH" \
+            --skip-jenkins \
+            --overwrite \
+            "$DMG_PATH" \
+            "$STAGING_DIR"
+    fi
 else
     echo "⚠️  create-dmg not found. Falling back to hdiutil..."
     hdiutil create -volname "Chibiori" -srcfolder "$STAGING_DIR" -ov -format UDZO "$DMG_PATH"

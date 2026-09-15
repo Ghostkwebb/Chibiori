@@ -9,22 +9,13 @@ public struct DiscoverView: View {
     @Environment(NavigationState.self) private var navState
     @State private var viewModel = DiscoverViewModel()
     @FocusState private var isGridFocused: Bool
-    @State private var availableWidth: CGFloat = 800
+    @State private var exactColumnsCount: Int = 4
 
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: navState.gridCardSize, maximum: navState.gridCardSize * 1.3), spacing: 16)]
     }
 
     public init() {}
-
-    private var exactColumnsCount: Int {
-        let spacing: CGFloat = 16
-        let padding: CGFloat = 32 // 16 left + 16 right
-        let contentWidth = max(0, availableWidth - padding)
-        let minCardWidth = navState.gridCardSize
-        let count = Int((contentWidth + spacing) / (minCardWidth + spacing))
-        return max(1, count)
-    }
 
     @State private var trackedMap: [Int: TrackedAnime] = [:]
 
@@ -193,12 +184,19 @@ public struct DiscoverView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .background(
                                 GeometryReader { geo in
+                                    let spacing: CGFloat = 16
+                                    let padding: CGFloat = 32
+                                    let contentWidth = max(0, geo.size.width - padding)
+                                    let minCardWidth = navState.gridCardSize
+                                    let calculatedCount = max(1, Int((contentWidth + spacing) / (minCardWidth + spacing)))
                                     Color.clear
-                                        .preference(key: DiscoverWidthPreferenceKey.self, value: geo.size.width)
+                                        .preference(key: DiscoverColumnCountPreferenceKey.self, value: calculatedCount)
                                 }
                             )
-                            .onPreferenceChange(DiscoverWidthPreferenceKey.self) { newWidth in
-                                availableWidth = newWidth
+                            .onPreferenceChange(DiscoverColumnCountPreferenceKey.self) { newCount in
+                                if exactColumnsCount != newCount {
+                                    exactColumnsCount = newCount
+                                }
                             }
                             .smooth120HzScroll()
                             .focusable()
@@ -316,9 +314,9 @@ public struct DiscoverView: View {
     }
 }
 
-private struct DiscoverWidthPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 800
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+private struct DiscoverColumnCountPreferenceKey: PreferenceKey {
+    static var defaultValue: Int = 4
+    static func reduce(value: inout Int, nextValue: () -> Int) {
         value = nextValue()
     }
 }

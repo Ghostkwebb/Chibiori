@@ -22,11 +22,8 @@ private struct SmoothScrollIntrospector: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            if let scrollView = nsView.enclosingScrollView {
-                configureScrollView(scrollView)
-            }
-        }
+        // No-op: Scroll view configuration is performed once in makeNSView to avoid
+        // runloop flooding and layout invalidation during active scrolling.
     }
 
     private func configureScrollView(_ scrollView: NSScrollView) {

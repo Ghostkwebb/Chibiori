@@ -42,7 +42,7 @@ public struct DiscoverAnimeCard: View, Equatable {
                     malID: dto.malId,
                     remoteURLString: dto.coverImageURL,
                     cornerRadius: 10,
-                    shadowRadius: isSelected ? 6 : (isHovered ? 8 : 3)
+                    shadowRadius: 0
                 )
                 .frame(maxWidth: .infinity)
                 .aspectRatio(225 / 318, contentMode: .fit)

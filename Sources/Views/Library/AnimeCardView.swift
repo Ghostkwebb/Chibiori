@@ -34,7 +34,7 @@ public struct AnimeCardView: View, Equatable {
                     remoteURLString: anime.coverImageRemoteURL,
                     localFilename: anime.coverImageFilename,
                     cornerRadius: 10,
-                    shadowRadius: isSelected ? 6 : (isHovered ? 8 : 3)
+                    shadowRadius: 0
                 )
                 .frame(maxWidth: .infinity)
                 .aspectRatio(225 / 318, contentMode: .fit)

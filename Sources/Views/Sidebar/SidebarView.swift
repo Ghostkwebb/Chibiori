@@ -16,13 +16,7 @@ public struct SidebarView: View {
     }
 
     public var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                // Ambient Window Background
-                AmbientGlowBackground()
-
-                // Floating Detached Glassmorphic Sidebar Card
-                VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 4) {
                         // Section 1: MY LIBRARY
@@ -144,41 +138,9 @@ public struct SidebarView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
             }
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(.ultraThinMaterial)
-
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color.black.opacity(0.38))
-                }
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.22),
-                                Color.white.opacity(0.05)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-            )
-            .shadow(color: Color.black.opacity(0.30), radius: 16, x: 0, y: 6)
-            .padding(10)
-            .onChange(of: geo.size.width) { _, newWidth in
-                if newWidth >= 190 && newWidth <= 350 {
-                    navState.sidebarWidth = newWidth
-                }
-            }
-        }
+            .background(.ultraThinMaterial)
+            .navigationSplitViewColumnWidth(min: 200, ideal: navState.sidebarWidth, max: 320)
     }
-    .navigationSplitViewColumnWidth(min: 200, ideal: navState.sidebarWidth, max: 350)
-}
 
     private func sectionHeader(_ title: String) -> some View {
         Text(title)

@@ -54,8 +54,26 @@ public actor CoverImageManager {
         return appSupport.appendingPathComponent("Chibiori/Covers/\(filename)")
     }
 
+    /// Fast synchronous check against memory cache and local disk without actor queue serialization
+    public nonisolated func synchronousImage(malID: Int, existingFilename: String?) -> NSImage? {
+        if let memoryImage = MemoryImageCache.shared.image(for: malID) {
+            return memoryImage
+        }
+        guard let existingFilename, !existingFilename.isEmpty else { return nil }
+        let diskURL = localFileURL(for: existingFilename)
+        if FileManager.default.fileExists(atPath: diskURL.path),
+           let data = try? Data(contentsOf: diskURL) {
+            let img = Self.downsample(data: data) ?? NSImage(data: data)
+            if let img {
+                MemoryImageCache.shared.setImage(img, for: malID, cost: data.count)
+            }
+            return img
+        }
+        return nil
+    }
+
     /// High performance downsampling to keep RAM and GPU texture uploads minimal
-    private nonisolated func downsample(data: Data, maxPixelSize: CGFloat = 450) -> NSImage? {
+    public nonisolated static func downsample(data: Data, maxPixelSize: CGFloat = 450) -> NSImage? {
         let imageSourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let imageSource = CGImageSourceCreateWithData(data as CFData, imageSourceOptions) else {
             return NSImage(data: data)
@@ -87,17 +105,24 @@ public actor CoverImageManager {
             return (cachedImage, filename)
         }
 
-        // 2. Check disk cache
+        // 2. Check disk cache concurrently without blocking actor mailbox
         let targetFilename = existingFilename ?? "cover_\(malID).jpg"
         let diskURL = coversDirectoryURL.appendingPathComponent(targetFilename)
 
-        if fileManager.fileExists(atPath: diskURL.path),
-           let data = try? Data(contentsOf: diskURL) {
-            let diskImage = downsample(data: data) ?? NSImage(data: data)
-            if let diskImage {
-                MemoryImageCache.shared.setImage(diskImage, for: malID, cost: data.count)
-                return (diskImage, targetFilename)
+        let diskImage: NSImage? = await Task.detached(priority: .userInitiated) {
+            guard FileManager.default.fileExists(atPath: diskURL.path),
+                  let data = try? Data(contentsOf: diskURL) else {
+                return nil
             }
+            let img = Self.downsample(data: data) ?? NSImage(data: data)
+            if let img {
+                MemoryImageCache.shared.setImage(img, for: malID, cost: data.count)
+            }
+            return img
+        }.value
+
+        if let diskImage {
+            return (diskImage, targetFilename)
         }
 
         // 3. Prevent duplicate in-flight network requests
@@ -121,7 +146,7 @@ public actor CoverImageManager {
                 try? data.write(to: diskURL, options: .atomic)
 
                 // Downsample for display
-                let finalImage = self.downsample(data: data) ?? NSImage(data: data)
+                let finalImage = Self.downsample(data: data) ?? NSImage(data: data)
                 if let finalImage {
                     MemoryImageCache.shared.setImage(finalImage, for: malID, cost: data.count)
                 }
@@ -136,6 +161,20 @@ public actor CoverImageManager {
         inFlightTasks.removeValue(forKey: remoteURLString)
 
         return (resultImage, targetFilename)
+    }
+
+    /// Background prefetch helper to pre-warm covers into RAM cache
+    public nonisolated func prefetchCovers(items: [(malID: Int, url: String, filename: String?)]) {
+        for item in items {
+            guard MemoryImageCache.shared.image(for: item.malID) == nil else { continue }
+            Task(priority: .background) {
+                _ = await CoverImageManager.shared.loadImage(
+                    malID: item.malID,
+                    remoteURLString: item.url,
+                    existingFilename: item.filename
+                )
+            }
+        }
     }
 
     /// Clear memory and disk covers cache
