@@ -109,3 +109,10 @@ fi
 
 echo "✅ Successfully built and packaged Chibiori.app at:"
 echo "   $APP_PATH"
+
+if [ -d "/Applications/Chibiori.app" ] && [ -w "/Applications" ]; then
+    echo "📦 Updating /Applications/Chibiori.app..."
+    rm -rf "/Applications/Chibiori.app"
+    cp -R "$APP_PATH" "/Applications/"
+    echo "✅ Synchronized to /Applications/Chibiori.app"
+fi
