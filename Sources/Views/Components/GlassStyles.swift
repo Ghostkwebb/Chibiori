@@ -48,10 +48,10 @@ public struct GlassCardModifier: ViewModifier {
             .shadow(
                 color: isSelected
                     ? Color.accentColor.opacity(0.35)
-                    : Color.black.opacity(0.16),
-                radius: isSelected ? 6 : 4,
+                    : Color.black.opacity(0.10),
+                radius: isSelected ? 6 : 2,
                 x: 0,
-                y: 2
+                y: 1
             )
     }
 }

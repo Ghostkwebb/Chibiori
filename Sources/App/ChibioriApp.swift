@@ -182,18 +182,6 @@ struct MainContentView: View {
         NavigationSplitView {
             SidebarView(selection: $state.selectedSidebar)
                 .navigationSplitViewColumnWidth(min: 200, ideal: initialSidebarWidth, max: 320)
-                .background(
-                    GeometryReader { geo in
-                        Color.clear
-                            .onChange(of: geo.size.width) { _, newWidth in
-                                if newWidth >= 200 && newWidth <= 320 && abs(newWidth - navState.sidebarWidth) > 4 {
-                                    DispatchQueue.main.async {
-                                        navState.sidebarWidth = newWidth
-                                    }
-                                }
-                            }
-                    }
-                )
         } detail: {
             Group {
                 switch state.selectedSidebar ?? .allAnime {
@@ -245,18 +233,6 @@ struct MainContentView: View {
                 }
             }
             .background(.ultraThinMaterial)
-            .background(
-                GeometryReader { geo in
-                    Color.clear
-                        .onChange(of: geo.size.width) { _, newWidth in
-                            if newWidth >= 280 && newWidth <= 480 && abs(newWidth - navState.inspectorWidth) > 4 {
-                                DispatchQueue.main.async {
-                                    navState.inspectorWidth = newWidth
-                                }
-                            }
-                        }
-                }
-            )
             .inspectorColumnWidth(min: 280, ideal: initialInspectorWidth, max: 480)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
