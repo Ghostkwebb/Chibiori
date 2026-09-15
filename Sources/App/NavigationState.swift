@@ -130,9 +130,16 @@ public final class NavigationState {
             UserDefaults.standard.set(titleLanguagePreference.rawValue, forKey: "preferredTitleLanguage")
         }
     }
+    private static var saveGridSizeWorkItem: DispatchWorkItem?
     public var gridCardSize: Double {
         didSet {
-            UserDefaults.standard.set(gridCardSize, forKey: "libraryGridCardSize")
+            Self.saveGridSizeWorkItem?.cancel()
+            let size = gridCardSize
+            let item = DispatchWorkItem {
+                UserDefaults.standard.set(size, forKey: "libraryGridCardSize")
+            }
+            Self.saveGridSizeWorkItem = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: item)
         }
     }
     public var sidebarWidth: Double {

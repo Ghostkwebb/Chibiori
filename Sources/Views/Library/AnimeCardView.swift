@@ -1,8 +1,8 @@
 import SwiftUI
 
 public struct AnimeCardView: View, Equatable {
-    @Environment(NavigationState.self) private var navState
     @Bindable var anime: TrackedAnime
+    let titleLanguagePreference: TitleLanguagePreference
     let isSelected: Bool
     let onSelect: () -> Void
 
@@ -11,6 +11,7 @@ public struct AnimeCardView: View, Equatable {
     public static func == (lhs: AnimeCardView, rhs: AnimeCardView) -> Bool {
         lhs.anime.persistentModelID == rhs.anime.persistentModelID &&
         lhs.isSelected == rhs.isSelected &&
+        lhs.titleLanguagePreference == rhs.titleLanguagePreference &&
         lhs.anime.watchStatus == rhs.anime.watchStatus &&
         lhs.anime.currentEpisodeProgress == rhs.anime.currentEpisodeProgress &&
         lhs.anime.title == rhs.anime.title &&
@@ -19,8 +20,14 @@ public struct AnimeCardView: View, Equatable {
         lhs.isHovered == rhs.isHovered
     }
 
-    public init(anime: TrackedAnime, isSelected: Bool, onSelect: @escaping () -> Void) {
+    public init(
+        anime: TrackedAnime,
+        titleLanguagePreference: TitleLanguagePreference = .english,
+        isSelected: Bool,
+        onSelect: @escaping () -> Void
+    ) {
         self.anime = anime
+        self.titleLanguagePreference = titleLanguagePreference
         self.isSelected = isSelected
         self.onSelect = onSelect
     }
@@ -136,7 +143,7 @@ public struct AnimeCardView: View, Equatable {
 
             // Title & Controls
             VStack(alignment: .leading, spacing: 6) {
-                Text(anime.displayTitle(for: navState.titleLanguagePreference))
+                Text(anime.displayTitle(for: titleLanguagePreference))
                     .font(.system(size: 12, weight: .bold))
                     .lineLimit(2)
                     .frame(height: 32, alignment: .topLeading)

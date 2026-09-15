@@ -153,6 +153,7 @@ public struct DiscoverView: View {
                                         DiscoverAnimeCard(
                                             dto: dto,
                                             existingTracked: matchingTracked,
+                                            titleLanguagePreference: navState.titleLanguagePreference,
                                             isSelected: isCardSelected,
                                             onSelect: {
                                                 isGridFocused = true
@@ -172,6 +173,7 @@ public struct DiscoverView: View {
                                         .id(dto.malId)
                                     }
                                 }
+                                .animation(nil, value: navState.gridCardSize)
                                 .padding(16)
 
                                 // Show More Button / Footer

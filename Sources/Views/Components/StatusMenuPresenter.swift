@@ -26,17 +26,26 @@ public final class StatusMenuPresenter: NSObject {
         header.isEnabled = false
         menu.addItem(header)
 
-        // Status items with colored indicators
+        // Status items with color-coded SF Symbol icons
         for status in WatchStatus.allCases {
-            let item = NSMenuItem(
-                title: status.displayName,
-                action: #selector(menuItemClicked(_:)),
-                keyEquivalent: ""
-            )
+            let item = NSMenuItem()
+            item.title = status.displayName
             item.target = self
             item.representedObject = status
-            item.image = status.coloredIndicatorDot
-            item.image?.isTemplate = false
+            item.action = #selector(menuItemClicked(_:))
+            item.keyEquivalent = ""
+
+            let attrTitle = NSMutableAttributedString()
+            attrTitle.append(NSAttributedString(attachment: status.coloredIconAttachment(size: 14)))
+            attrTitle.append(NSAttributedString(string: "  "))
+
+            let textAttr: [NSAttributedString.Key: Any] = [
+                .font: NSFont.menuFont(ofSize: 13),
+                .foregroundColor: NSColor.labelColor
+            ]
+            attrTitle.append(NSAttributedString(string: status.displayName, attributes: textAttr))
+
+            item.attributedTitle = attrTitle
             item.isEnabled = true
             if currentStatus == status {
                 item.state = .on
@@ -47,18 +56,23 @@ public final class StatusMenuPresenter: NSObject {
         // Optional Remove action (for franchise hub, etc.)
         if includeRemoveAction, onRemove != nil {
             menu.addItem(NSMenuItem.separator())
-            let removeItem = NSMenuItem(
-                title: "Remove from Library",
-                action: #selector(removeItemClicked(_:)),
-                keyEquivalent: ""
-            )
+            let removeItem = NSMenuItem()
+            removeItem.title = "Remove from Library"
             removeItem.target = self
-            let trashConfig = NSImage.SymbolConfiguration(pointSize: 11, weight: .regular)
-                .applying(.init(paletteColors: [.systemRed]))
-            if let trashImg = NSImage(systemSymbolName: "trash", accessibilityDescription: "Remove")?.withSymbolConfiguration(trashConfig) {
-                trashImg.isTemplate = false
-                removeItem.image = trashImg
-            }
+            removeItem.action = #selector(removeItemClicked(_:))
+            removeItem.keyEquivalent = ""
+
+            let removeAttrTitle = NSMutableAttributedString()
+            removeAttrTitle.append(NSAttributedString(attachment: makeTrashAttachment(size: 14)))
+            removeAttrTitle.append(NSAttributedString(string: "  "))
+
+            let textAttr: [NSAttributedString.Key: Any] = [
+                .foregroundColor: NSColor.systemRed,
+                .font: NSFont.menuFont(ofSize: 13)
+            ]
+            removeAttrTitle.append(NSAttributedString(string: "Remove from Library", attributes: textAttr))
+
+            removeItem.attributedTitle = removeAttrTitle
             removeItem.isEnabled = true
             menu.addItem(removeItem)
         }
@@ -74,5 +88,44 @@ public final class StatusMenuPresenter: NSObject {
 
     @objc private func removeItemClicked(_ sender: NSMenuItem) {
         removeCallback?()
+    }
+
+    private func makeTrashAttachment(size: CGFloat = 14) -> NSTextAttachment {
+        let iconSize = NSSize(width: size, height: size)
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(size * 2),
+            pixelsHigh: Int(size * 2),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
+            return NSTextAttachment()
+        }
+        rep.size = iconSize
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        let config = NSImage.SymbolConfiguration(pointSize: size - 2, weight: .bold)
+            .applying(.init(paletteColors: [.systemRed]))
+        if let sym = NSImage(systemSymbolName: "trash.fill", accessibilityDescription: "Remove")?.withSymbolConfiguration(config) {
+            let ox = (iconSize.width - sym.size.width) / 2
+            let oy = (iconSize.height - sym.size.height) / 2
+            sym.draw(in: NSRect(x: ox, y: oy, width: sym.size.width, height: sym.size.height))
+        }
+        NSGraphicsContext.restoreGraphicsState()
+
+        let img = NSImage(size: iconSize)
+        img.addRepresentation(rep)
+        img.isTemplate = false
+
+        let attachment = NSTextAttachment()
+        attachment.image = img
+        attachment.bounds = CGRect(x: 0, y: -2.5, width: iconSize.width, height: iconSize.height)
+        return attachment
     }
 }

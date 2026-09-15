@@ -142,31 +142,14 @@ public struct LibraryContainerView: View {
             ToolbarItemGroup(placement: .primaryAction) {
                 // Airing Status Filter Pill / Menu
                 Menu {
-                    Button {
-                        state.selectedAiringStatusFilter = nil
-                    } label: {
-                        HStack {
-                            Text("All Airing Statuses")
-                            if state.selectedAiringStatusFilter == nil {
-                                Image(systemName: "checkmark")
-                            }
+                    Picker("Airing Status", selection: $state.selectedAiringStatusFilter) {
+                        Text("All Airing Statuses").tag(AiringStatus?.none)
+                        Divider()
+                        ForEach(AiringStatus.allCases) { status in
+                            Text(status.displayName).tag(AiringStatus?.some(status))
                         }
                     }
-
-                    Divider()
-
-                    ForEach(AiringStatus.allCases) { status in
-                        Button {
-                            state.selectedAiringStatusFilter = status
-                        } label: {
-                            HStack {
-                                Text(status.displayName)
-                                if state.selectedAiringStatusFilter == status {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
+                    .pickerStyle(.inline)
                 } label: {
                     Label(
                         state.selectedAiringStatusFilter?.displayName ?? "Airing Status",
@@ -177,18 +160,12 @@ public struct LibraryContainerView: View {
 
                 // Sort Options Menu
                 Menu {
-                    ForEach(LibrarySortOption.allCases) { option in
-                        Button {
-                            state.selectedSortOption = option
-                        } label: {
-                            HStack {
-                                Text(option.rawValue)
-                                if state.selectedSortOption == option {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
+                    Picker("Sort Order", selection: $state.selectedSortOption) {
+                        ForEach(LibrarySortOption.allCases) { option in
+                            Text(option.rawValue).tag(option)
                         }
                     }
+                    .pickerStyle(.inline)
                 } label: {
                     Label("Sort", systemImage: "arrow.up.arrow.down")
                 }
@@ -196,19 +173,12 @@ public struct LibraryContainerView: View {
 
                 // Title Language Preference Menu
                 Menu {
-                    ForEach(TitleLanguagePreference.allCases) { pref in
-                        Button {
-                            state.titleLanguagePreference = pref
-                        } label: {
-                            HStack {
-                                Image(systemName: pref.icon)
-                                Text(pref.displayName)
-                                if state.titleLanguagePreference == pref {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
+                    Picker("Title Language", selection: $state.titleLanguagePreference) {
+                        ForEach(TitleLanguagePreference.allCases) { pref in
+                            Label(pref.displayName, systemImage: pref.icon).tag(pref)
                         }
                     }
+                    .pickerStyle(.inline)
                 } label: {
                     Label(state.titleLanguagePreference.displayName, systemImage: state.titleLanguagePreference.icon)
                 }

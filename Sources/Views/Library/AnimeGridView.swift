@@ -25,6 +25,7 @@ public struct AnimeGridView: View {
                     ForEach(animes) { anime in
                         AnimeCardView(
                             anime: anime,
+                            titleLanguagePreference: navState.titleLanguagePreference,
                             isSelected: selectedAnimeID == anime.persistentModelID
                         ) {
                             isFocused = true
@@ -34,10 +35,12 @@ public struct AnimeGridView: View {
                         .id(anime.persistentModelID)
                     }
                 }
+                .animation(nil, value: navState.gridCardSize)
                 .padding(16)
                 .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(nil, value: navState.gridCardSize)
             .smooth120HzScroll()
             .focusable()
             .focused($isFocused)

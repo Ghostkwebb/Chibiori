@@ -211,19 +211,15 @@ public struct SequelAlertsView: View {
 
             // Language Selector Picker Menu
             Menu {
-                ForEach(TitleLanguagePreference.allCases) { pref in
-                    Button {
-                        navState.titleLanguagePreference = pref
-                    } label: {
-                        HStack {
-                            Image(systemName: pref.icon)
-                            Text(pref.displayName)
-                            if navState.titleLanguagePreference == pref {
-                                Image(systemName: "checkmark")
-                            }
-                        }
+                Picker("Title Language", selection: Binding(
+                    get: { navState.titleLanguagePreference },
+                    set: { navState.titleLanguagePreference = $0 }
+                )) {
+                    ForEach(TitleLanguagePreference.allCases) { pref in
+                        Label(pref.displayName, systemImage: pref.icon).tag(pref)
                     }
                 }
+                .pickerStyle(.inline)
             } label: {
                 HStack(spacing: 5) {
                     Image(systemName: navState.titleLanguagePreference.icon)

@@ -2,9 +2,9 @@ import SwiftUI
 import SwiftData
 
 public struct DiscoverAnimeCard: View, Equatable {
-    @Environment(NavigationState.self) private var navState
     let dto: JikanAnimeDTO
     let existingTracked: TrackedAnime?
+    let titleLanguagePreference: TitleLanguagePreference
     var isSelected: Bool = false
     var onSelect: (() -> Void)? = nil
     let onAddToLibrary: (WatchStatus) -> Void
@@ -14,6 +14,7 @@ public struct DiscoverAnimeCard: View, Equatable {
     public static func == (lhs: DiscoverAnimeCard, rhs: DiscoverAnimeCard) -> Bool {
         lhs.dto.malId == rhs.dto.malId &&
         lhs.isSelected == rhs.isSelected &&
+        lhs.titleLanguagePreference == rhs.titleLanguagePreference &&
         lhs.existingTracked?.watchStatus == rhs.existingTracked?.watchStatus &&
         lhs.dto.title == rhs.dto.title &&
         lhs.dto.titleEnglish == rhs.dto.titleEnglish &&
@@ -23,12 +24,14 @@ public struct DiscoverAnimeCard: View, Equatable {
     public init(
         dto: JikanAnimeDTO,
         existingTracked: TrackedAnime?,
+        titleLanguagePreference: TitleLanguagePreference = .english,
         isSelected: Bool = false,
         onSelect: (() -> Void)? = nil,
         onAddToLibrary: @escaping (WatchStatus) -> Void
     ) {
         self.dto = dto
         self.existingTracked = existingTracked
+        self.titleLanguagePreference = titleLanguagePreference
         self.isSelected = isSelected
         self.onSelect = onSelect
         self.onAddToLibrary = onAddToLibrary
@@ -102,7 +105,7 @@ public struct DiscoverAnimeCard: View, Equatable {
 
             // Title & Information
             VStack(alignment: .leading, spacing: 5) {
-                Text(dto.displayTitle(for: navState.titleLanguagePreference))
+                Text(dto.displayTitle(for: titleLanguagePreference))
                     .font(.system(size: 12, weight: .bold))
                     .lineLimit(2)
                     .frame(height: 32, alignment: .topLeading)

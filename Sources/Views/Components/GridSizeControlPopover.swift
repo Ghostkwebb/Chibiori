@@ -39,7 +39,7 @@ public struct GridSizeControlPopover: View {
                 Slider(
                     value: $gridCardSize,
                     in: 110...260,
-                    step: 5
+                    step: 2
                 )
                 .controlSize(.small)
 
@@ -51,9 +51,9 @@ public struct GridSizeControlPopover: View {
             // Quick Preset Pills
             HStack(spacing: 6) {
                 ForEach(presets, id: \.label) { preset in
-                    let isSelected = abs(gridCardSize - preset.size) < 8
+                    let isSelected = abs(gridCardSize - preset.size) < 6
                     Button {
-                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                        withAnimation(.easeOut(duration: 0.15)) {
                             gridCardSize = preset.size
                         }
                     } label: {
@@ -74,7 +74,7 @@ public struct GridSizeControlPopover: View {
             HStack {
                 Spacer()
                 Button("Reset to Default (165pt)") {
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    withAnimation(.easeOut(duration: 0.15)) {
                         gridCardSize = 165
                     }
                 }
