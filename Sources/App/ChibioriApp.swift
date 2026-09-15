@@ -169,6 +169,17 @@ struct MainContentView: View {
 
         NavigationSplitView {
             SidebarView(selection: $state.selectedSidebar)
+                .navigationSplitViewColumnWidth(min: 200, ideal: state.sidebarWidth, max: 320)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .onChange(of: geo.size.width) { _, newWidth in
+                                if newWidth >= 200 && newWidth <= 320 && abs(newWidth - state.sidebarWidth) > 2 {
+                                    state.sidebarWidth = newWidth
+                                }
+                            }
+                    }
+                )
         } detail: {
             Group {
                 switch state.selectedSidebar ?? .allAnime {
@@ -185,42 +196,58 @@ struct MainContentView: View {
                     BackupManagementView()
                 }
             }
-            .inspector(isPresented: $state.showInspector) {
-                Group {
-                    if let anime = selectedAnime {
-                        AnimeDetailInspectorView(anime: anime) {
-                            modelContext.delete(anime)
-                            try? modelContext.save()
-                            state.selectedAnimeID = nil
+        }
+        .inspector(isPresented: $state.showInspector) {
+            Group {
+                if let anime = selectedAnime {
+                    AnimeDetailInspectorView(anime: anime) {
+                        modelContext.delete(anime)
+                        try? modelContext.save()
+                        state.selectedAnimeID = nil
+                    }
+                    .id(anime.persistentModelID)
+                } else if let dto = state.selectedJikanDTO {
+                    JikanAnimeDetailInspectorView(dto: dto) { newAnime in
+                        withAnimation(.spring(response: 0.3)) {
+                            state.selectTracked(newAnime.persistentModelID)
                         }
-                        .id(anime.persistentModelID)
-                    } else if let dto = state.selectedJikanDTO {
-                        JikanAnimeDetailInspectorView(dto: dto) { newAnime in
-                            withAnimation(.spring(response: 0.3)) {
-                                state.selectTracked(newAnime.persistentModelID)
+                    }
+                    .id(dto.malId)
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "sidebar.trailing")
+                            .font(.system(size: 32))
+                            .foregroundStyle(.tertiary)
+                        Text("No Anime Selected")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Text("Click any anime in your Library, Search, or Weekly Calendar to view full details.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 20)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .background(.ultraThinMaterial)
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear {
+                            let w = geo.size.width
+                            if w >= 280 && w <= 480 && abs(w - state.inspectorWidth) > 2 {
+                                state.inspectorWidth = w
                             }
                         }
-                        .id(dto.malId)
-                    } else {
-                        VStack(spacing: 12) {
-                            Image(systemName: "sidebar.trailing")
-                                .font(.system(size: 32))
-                                .foregroundStyle(.tertiary)
-                            Text("No Anime Selected")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                            Text("Click any anime in your Library, Search, or Weekly Calendar to view full details.")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.tertiary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 20)
+                        .onChange(of: geo.size.width) { _, newWidth in
+                            if newWidth >= 280 && newWidth <= 480 && abs(newWidth - state.inspectorWidth) > 2 {
+                                state.inspectorWidth = newWidth
+                            }
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
                 }
-                .background(.ultraThinMaterial)
-                .inspectorColumnWidth(min: 280, ideal: state.inspectorWidth, max: 480)
-            }
+            )
+            .inspectorColumnWidth(min: 280, ideal: state.inspectorWidth, max: 480)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
