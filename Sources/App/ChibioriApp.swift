@@ -159,6 +159,18 @@ struct MainContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var allAnime: [TrackedAnime]
 
+    // Initial column widths loaded once at launch from UserDefaults
+    private let initialSidebarWidth: CGFloat
+    private let initialInspectorWidth: CGFloat
+
+    init() {
+        let savedSidebar = UserDefaults.standard.double(forKey: "savedSidebarWidth")
+        self.initialSidebarWidth = (savedSidebar >= 200 && savedSidebar <= 320) ? savedSidebar : 235
+
+        let savedInspector = UserDefaults.standard.double(forKey: "savedInspectorWidth")
+        self.initialInspectorWidth = (savedInspector >= 280 && savedInspector <= 480) ? savedInspector : 340
+    }
+
     private var selectedAnime: TrackedAnime? {
         guard let id = navState.selectedAnimeID else { return nil }
         return modelContext.model(for: id) as? TrackedAnime
@@ -169,13 +181,15 @@ struct MainContentView: View {
 
         NavigationSplitView {
             SidebarView(selection: $state.selectedSidebar)
-                .navigationSplitViewColumnWidth(min: 200, ideal: state.sidebarWidth, max: 320)
+                .navigationSplitViewColumnWidth(min: 200, ideal: initialSidebarWidth, max: 320)
                 .background(
                     GeometryReader { geo in
                         Color.clear
                             .onChange(of: geo.size.width) { _, newWidth in
-                                if newWidth >= 200 && newWidth <= 320 && abs(newWidth - state.sidebarWidth) > 2 {
-                                    state.sidebarWidth = newWidth
+                                if newWidth >= 200 && newWidth <= 320 && abs(newWidth - navState.sidebarWidth) > 4 {
+                                    DispatchQueue.main.async {
+                                        navState.sidebarWidth = newWidth
+                                    }
                                 }
                             }
                     }
@@ -234,20 +248,16 @@ struct MainContentView: View {
             .background(
                 GeometryReader { geo in
                     Color.clear
-                        .onAppear {
-                            let w = geo.size.width
-                            if w >= 280 && w <= 480 && abs(w - state.inspectorWidth) > 2 {
-                                state.inspectorWidth = w
-                            }
-                        }
                         .onChange(of: geo.size.width) { _, newWidth in
-                            if newWidth >= 280 && newWidth <= 480 && abs(newWidth - state.inspectorWidth) > 2 {
-                                state.inspectorWidth = newWidth
+                            if newWidth >= 280 && newWidth <= 480 && abs(newWidth - navState.inspectorWidth) > 4 {
+                                DispatchQueue.main.async {
+                                    navState.inspectorWidth = newWidth
+                                }
                             }
                         }
                 }
             )
-            .inspectorColumnWidth(min: 280, ideal: state.inspectorWidth, max: 480)
+            .inspectorColumnWidth(min: 280, ideal: initialInspectorWidth, max: 480)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {

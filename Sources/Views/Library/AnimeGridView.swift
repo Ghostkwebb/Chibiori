@@ -35,12 +35,12 @@ public struct AnimeGridView: View {
                         .id(anime.persistentModelID)
                     }
                 }
-                .animation(nil, value: navState.gridCardSize)
+                .transaction { $0.animation = nil }
                 .padding(16)
                 .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .animation(nil, value: navState.gridCardSize)
+            .transaction { $0.animation = nil }
             .smooth120HzScroll()
             .focusable()
             .focused($isFocused)

@@ -142,28 +142,15 @@ public final class NavigationState {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: item)
         }
     }
-    private static var saveSidebarWorkItem: DispatchWorkItem?
     public var sidebarWidth: Double {
         didSet {
-            Self.saveSidebarWorkItem?.cancel()
-            let w = sidebarWidth
-            let item = DispatchWorkItem {
-                UserDefaults.standard.set(w, forKey: "savedSidebarWidth")
-            }
-            Self.saveSidebarWorkItem = item
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: item)
+            UserDefaults.standard.set(sidebarWidth, forKey: "savedSidebarWidth")
         }
     }
-    private static var saveInspectorWorkItem: DispatchWorkItem?
+
     public var inspectorWidth: Double {
         didSet {
-            Self.saveInspectorWorkItem?.cancel()
-            let w = inspectorWidth
-            let item = DispatchWorkItem {
-                UserDefaults.standard.set(w, forKey: "savedInspectorWidth")
-            }
-            Self.saveInspectorWorkItem = item
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: item)
+            UserDefaults.standard.set(inspectorWidth, forKey: "savedInspectorWidth")
         }
     }
     public var showGridSizePopover: Bool = false

@@ -173,7 +173,7 @@ public struct DiscoverView: View {
                                         .id(dto.malId)
                                     }
                                 }
-                                .animation(nil, value: navState.gridCardSize)
+                                .transaction { $0.animation = nil }
                                 .padding(16)
 
                                 // Show More Button / Footer

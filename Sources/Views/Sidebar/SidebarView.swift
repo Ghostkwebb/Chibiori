@@ -139,7 +139,6 @@ public struct SidebarView: View {
                 .padding(.vertical, 8)
             }
             .background(.ultraThinMaterial)
-            .navigationSplitViewColumnWidth(min: 200, ideal: navState.sidebarWidth, max: 320)
     }
 
     private func sectionHeader(_ title: String) -> some View {
