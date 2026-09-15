@@ -172,10 +172,9 @@ struct MainContentView: View {
         } detail: {
             Group {
                 switch state.selectedSidebar ?? .allAnime {
-                case .allAnime:
-                    LibraryContainerView(watchStatusFilter: nil)
-                case .watchStatus(let status):
-                    LibraryContainerView(watchStatusFilter: status)
+                case .allAnime, .watchStatus(_):
+                    LibraryContainerView(watchStatusFilter: state.selectedSidebar?.filterStatus)
+                        .id("library_container_view")
                 case .search:
                     DiscoverView()
                 case .weeklyCalendar:

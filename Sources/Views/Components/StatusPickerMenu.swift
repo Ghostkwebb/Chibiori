@@ -11,25 +11,17 @@ public struct StatusPickerMenu: View {
     }
 
     public var body: some View {
-        Menu {
-            Section("MOVE TO STATUS") {
-                ForEach(WatchStatus.allCases) { status in
-                    Button {
-                        onSelect(status)
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(nsImage: status.coloredMenuIcon)
-                            if currentStatus == status {
-                                Text("\(status.displayName)  ✓")
-                            } else {
-                                Text(status.displayName)
-                            }
-                        }
-                    }
-                }
-            }
+        Button {
+            StatusMenuPresenter.shared.presentMenu(
+                currentStatus: currentStatus,
+                headerTitle: "MOVE TO STATUS",
+                onSelect: onSelect
+            )
         } label: {
             HStack(spacing: 5) {
+                Circle()
+                    .fill(currentStatus.accentColor)
+                    .frame(width: 6, height: 6)
                 Image(systemName: currentStatus.systemImage)
                     .font(.system(size: 10, weight: .semibold))
                 Text(currentStatus.displayName)
@@ -48,7 +40,7 @@ public struct StatusPickerMenu: View {
                     .strokeBorder(currentStatus.accentColor.opacity(0.35), lineWidth: 1)
             )
         }
-        .menuStyle(.borderlessButton)
+        .buttonStyle(.plain)
         .fixedSize()
     }
 }

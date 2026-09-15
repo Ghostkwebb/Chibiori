@@ -7,12 +7,10 @@ public struct AnimeGridView: View {
     @Environment(NavigationState.self) private var navState
     let animes: [TrackedAnime]
     @Binding var selectedAnimeID: PersistentIdentifier?
-
     @FocusState private var isFocused: Bool
-    @State private var exactColumnsCount: Int = 4
 
     private var columns: [GridItem] {
-        [GridItem(.adaptive(minimum: navState.gridCardSize, maximum: navState.gridCardSize * 1.3), spacing: 16)]
+        [GridItem(.adaptive(minimum: navState.gridCardSize, maximum: navState.gridCardSize), spacing: 16)]
     }
 
     public init(animes: [TrackedAnime], selectedAnimeID: Binding<PersistentIdentifier?>) {
@@ -40,22 +38,6 @@ public struct AnimeGridView: View {
                 .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(
-                GeometryReader { geo in
-                    let spacing: CGFloat = 16
-                    let padding: CGFloat = 32
-                    let contentWidth = max(0, geo.size.width - padding)
-                    let minCardWidth = navState.gridCardSize
-                    let calculatedCount = max(1, Int((contentWidth + spacing) / (minCardWidth + spacing)))
-                    Color.clear
-                        .preference(key: GridColumnCountPreferenceKey.self, value: calculatedCount)
-                }
-            )
-            .onPreferenceChange(GridColumnCountPreferenceKey.self) { newCount in
-                if exactColumnsCount != newCount {
-                    exactColumnsCount = newCount
-                }
-            }
             .smooth120HzScroll()
             .focusable()
             .focused($isFocused)
@@ -75,21 +57,23 @@ public struct AnimeGridView: View {
                 return .handled
             }
             .onKeyPress(.downArrow) {
-                selectDelta(exactColumnsCount, proxy: proxy)
+                selectDelta(currentColumnCount(), proxy: proxy)
                 return .handled
             }
             .onKeyPress(.upArrow) {
-                selectDelta(-exactColumnsCount, proxy: proxy)
+                selectDelta(-currentColumnCount(), proxy: proxy)
                 return .handled
             }
         }
     }
 
-    private struct GridColumnCountPreferenceKey: PreferenceKey {
-        static var defaultValue: Int = 4
-        static func reduce(value: inout Int, nextValue: () -> Int) {
-            value = nextValue()
-        }
+    private func currentColumnCount() -> Int {
+        guard let window = NSApp.keyWindow else { return 4 }
+        let inspectorWidth: CGFloat = navState.showInspector ? navState.inspectorWidth : 0
+        let sidebarWidth: CGFloat = 220
+        let availableWidth = max(200, window.frame.width - sidebarWidth - inspectorWidth - 32)
+        let cardSize = navState.gridCardSize
+        return max(1, Int((availableWidth + 16) / (cardSize + 16)))
     }
 
     @MainActor

@@ -52,11 +52,55 @@ public enum WatchStatus: String, CaseIterable, Codable, Identifiable, Sendable {
     }
 
     public var coloredMenuIcon: NSImage {
-        let config = NSImage.SymbolConfiguration(paletteColors: [self.nsColor])
-        if let base = NSImage(systemSymbolName: self.systemImage, accessibilityDescription: displayName)?.withSymbolConfiguration(config) {
-            base.isTemplate = false
-            return base
+        let size = NSSize(width: 16, height: 16)
+        let img = NSImage(size: size, flipped: false) { rect in
+            let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
+                .applying(.init(paletteColors: [self.nsColor]))
+            if let symbol = NSImage(systemSymbolName: self.systemImage, accessibilityDescription: self.displayName)?.withSymbolConfiguration(config) {
+                symbol.isTemplate = false
+                let ox = (size.width - symbol.size.width) / 2
+                let oy = (size.height - symbol.size.height) / 2
+                symbol.draw(in: NSRect(x: ox, y: oy, width: symbol.size.width, height: symbol.size.height))
+                return true
+            } else {
+                self.nsColor.setFill()
+                let circle = NSBezierPath(ovalIn: NSRect(x: 3, y: 3, width: 10, height: 10))
+                circle.fill()
+                return true
+            }
         }
-        return NSImage()
+        img.isTemplate = false
+        return img
+    }
+
+    public var coloredIndicatorDot: NSImage {
+        let size = NSSize(width: 14, height: 14)
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: 28,
+            pixelsHigh: 28,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
+            return NSImage(size: size)
+        }
+        rep.size = size
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        self.nsColor.setFill()
+        let circle = NSBezierPath(ovalIn: NSRect(x: 2, y: 2, width: 10, height: 10))
+        circle.fill()
+        NSGraphicsContext.restoreGraphicsState()
+
+        let img = NSImage(size: size)
+        img.addRepresentation(rep)
+        img.isTemplate = false
+        return img
     }
 }

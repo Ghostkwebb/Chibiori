@@ -63,6 +63,13 @@ public enum SidebarSelection: Hashable, Identifiable {
         case .backup: return "arrow.triangle.2.circlepath.circle.fill"
         }
     }
+
+    public var filterStatus: WatchStatus? {
+        if case .watchStatus(let status) = self {
+            return status
+        }
+        return nil
+    }
 }
 
 public enum ViewMode: String, CaseIterable, Identifiable {
@@ -138,6 +145,8 @@ public final class NavigationState {
             UserDefaults.standard.set(inspectorWidth, forKey: "savedInspectorWidth")
         }
     }
+    public var showGridSizePopover: Bool = false
+
 
     public init() {
         if let savedLang = UserDefaults.standard.string(forKey: "preferredTitleLanguage"),

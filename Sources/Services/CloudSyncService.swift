@@ -90,14 +90,22 @@ public final class CloudSyncService: NSObject {
 
         isSyncing = true
 
-        // Capture values for background use
+        // 1. Serialize SwiftData models synchronously on the calling thread
+        // to guarantee thread-safety (SwiftData models must not be accessed across threads)
+        let data: Data
+        do {
+            data = try BackupService.shared.generateExportData(from: animes)
+        } catch {
+            isSyncing = false
+            return
+        }
+
+        // 2. Capture immutable Sendable values for background disk writing
         let folderURL = iCloudDriveFolderURL
         let fileURL = syncFileURL
 
         Task.detached(priority: .utility) {
             do {
-                let data = try BackupService.shared.generateExportData(from: animes)
-
                 // Ensure the Chibiori folder exists inside iCloud Drive
                 if !FileManager.default.fileExists(atPath: folderURL.path) {
                     try FileManager.default.createDirectory(

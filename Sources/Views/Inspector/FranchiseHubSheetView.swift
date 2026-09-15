@@ -492,30 +492,18 @@ struct FranchiseItemRow: View {
     }
 
     private func statusMenu(tracked: TrackedAnime) -> some View {
-        Menu {
-            Section("CHANGE STATUS") {
-                ForEach(WatchStatus.allCases) { status in
-                    Button {
-                        updateStatus(for: tracked, to: status)
-                    } label: {
-                        HStack {
-                            Image(nsImage: status.coloredMenuIcon)
-                            Text(status.displayName)
-                            if tracked.watchStatus == status {
-                                Text("✓")
-                            }
-                        }
-                    }
+        Button {
+            StatusMenuPresenter.shared.presentMenu(
+                currentStatus: tracked.watchStatus,
+                headerTitle: "CHANGE STATUS",
+                includeRemoveAction: true,
+                onRemove: {
+                    removeFromLibrary(tracked: tracked)
+                },
+                onSelect: { status in
+                    updateStatus(for: tracked, to: status)
                 }
-            }
-
-            Divider()
-
-            Button(role: .destructive) {
-                removeFromLibrary(tracked: tracked)
-            } label: {
-                Label("Remove from Library", systemImage: "trash")
-            }
+            )
         } label: {
             HStack(spacing: 5) {
                 Circle()
@@ -536,25 +524,19 @@ struct FranchiseItemRow: View {
                 Capsule().stroke(tracked.watchStatus.accentColor.opacity(0.4), lineWidth: 0.8)
             )
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
+        .buttonStyle(.plain)
         .fixedSize()
     }
 
     private var trackMenu: some View {
-        Menu {
-            Section("ADD TO LIBRARY") {
-                ForEach(WatchStatus.allCases) { status in
-                    Button {
-                        trackAnime(with: status)
-                    } label: {
-                        HStack {
-                            Image(nsImage: status.coloredMenuIcon)
-                            Text(status.displayName)
-                        }
-                    }
+        Button {
+            StatusMenuPresenter.shared.presentMenu(
+                currentStatus: nil,
+                headerTitle: "ADD TO LIBRARY",
+                onSelect: { status in
+                    trackAnime(with: status)
                 }
-            }
+            )
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: "plus")
@@ -573,8 +555,7 @@ struct FranchiseItemRow: View {
                 Capsule().stroke(Color.accentColor.opacity(0.4), lineWidth: 0.8)
             )
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
+        .buttonStyle(.plain)
         .fixedSize()
     }
 

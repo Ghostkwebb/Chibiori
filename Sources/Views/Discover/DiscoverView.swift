@@ -9,10 +9,9 @@ public struct DiscoverView: View {
     @Environment(NavigationState.self) private var navState
     @State private var viewModel = DiscoverViewModel()
     @FocusState private var isGridFocused: Bool
-    @State private var exactColumnsCount: Int = 4
 
     private var columns: [GridItem] {
-        [GridItem(.adaptive(minimum: navState.gridCardSize, maximum: navState.gridCardSize * 1.3), spacing: 16)]
+        [GridItem(.adaptive(minimum: navState.gridCardSize, maximum: navState.gridCardSize), spacing: 16)]
     }
 
     public init() {}
@@ -26,6 +25,38 @@ public struct DiscoverView: View {
             AmbientGlowBackground()
 
             VStack(spacing: 0) {
+                // In-View Search Input Bar (Prevents NSToolbar duplicate search crashes)
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+
+                    TextField("Search anime (e.g. Steins;Gate, Jujutsu Kaisen)...", text: $viewModel.searchQuery)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13))
+
+                    if !viewModel.searchQuery.isEmpty {
+                        Button {
+                            viewModel.searchQuery = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color(nsColor: .controlBackgroundColor).opacity(0.65))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+
                 // Category selector if search is empty
                 if viewModel.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -182,22 +213,6 @@ public struct DiscoverView: View {
                                 }
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(
-                                GeometryReader { geo in
-                                    let spacing: CGFloat = 16
-                                    let padding: CGFloat = 32
-                                    let contentWidth = max(0, geo.size.width - padding)
-                                    let minCardWidth = navState.gridCardSize
-                                    let calculatedCount = max(1, Int((contentWidth + spacing) / (minCardWidth + spacing)))
-                                    Color.clear
-                                        .preference(key: DiscoverColumnCountPreferenceKey.self, value: calculatedCount)
-                                }
-                            )
-                            .onPreferenceChange(DiscoverColumnCountPreferenceKey.self) { newCount in
-                                if exactColumnsCount != newCount {
-                                    exactColumnsCount = newCount
-                                }
-                            }
                             .smooth120HzScroll()
                             .focusable()
                             .focused($isGridFocused)
@@ -217,11 +232,11 @@ public struct DiscoverView: View {
                                 return .handled
                             }
                             .onKeyPress(.downArrow) {
-                                selectDelta(exactColumnsCount, proxy: proxy, state: state)
+                                selectDelta(currentColumnCount(), proxy: proxy, state: state)
                                 return .handled
                             }
                             .onKeyPress(.upArrow) {
-                                selectDelta(-exactColumnsCount, proxy: proxy, state: state)
+                                selectDelta(-currentColumnCount(), proxy: proxy, state: state)
                                 return .handled
                             }
                         }
@@ -230,10 +245,7 @@ public struct DiscoverView: View {
             }
         }
         .navigationTitle("Search")
-        .searchable(
-            text: $viewModel.searchQuery,
-            prompt: "Search anime (e.g. Steins;Gate, Jujutsu Kaisen)..."
-        )
+
         .onChange(of: viewModel.searchQuery) { _, _ in
             viewModel.performSearch()
         }
@@ -312,11 +324,13 @@ public struct DiscoverView: View {
             proxy.scrollTo(targetDTO.malId, anchor: .center)
         }
     }
-}
-
-private struct DiscoverColumnCountPreferenceKey: PreferenceKey {
-    static var defaultValue: Int = 4
-    static func reduce(value: inout Int, nextValue: () -> Int) {
-        value = nextValue()
+    private func currentColumnCount() -> Int {
+        guard let window = NSApp.keyWindow else { return 4 }
+        let inspectorWidth: CGFloat = navState.showInspector ? navState.inspectorWidth : 0
+        let sidebarWidth: CGFloat = 220
+        let availableWidth = max(200, window.frame.width - sidebarWidth - inspectorWidth - 32)
+        let cardSize = navState.gridCardSize
+        return max(1, Int((availableWidth + 16) / (cardSize + 16)))
     }
 }
+

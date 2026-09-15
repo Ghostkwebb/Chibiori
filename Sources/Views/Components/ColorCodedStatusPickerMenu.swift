@@ -17,26 +17,18 @@ public struct ColorCodedStatusPickerMenu: View {
     }
 
     public var body: some View {
-        Menu {
-            Section("ADD TO WATCH STATUS") {
-                ForEach(WatchStatus.allCases) { status in
-                    Button {
-                        onSelect(status)
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(nsImage: status.coloredMenuIcon)
-                            if currentStatus == status {
-                                Text("\(status.displayName)  ✓")
-                            } else {
-                                Text(status.displayName)
-                            }
-                        }
-                    }
-                }
-            }
+        Button {
+            StatusMenuPresenter.shared.presentMenu(
+                currentStatus: currentStatus,
+                headerTitle: "ADD TO WATCH STATUS",
+                onSelect: onSelect
+            )
         } label: {
             HStack(spacing: 5) {
                 if let status = currentStatus {
+                    Circle()
+                        .fill(status.accentColor)
+                        .frame(width: 6, height: 6)
                     Image(systemName: status.systemImage)
                         .font(.system(size: 10, weight: .semibold))
                     Text(status.displayName)
@@ -77,6 +69,6 @@ public struct ColorCodedStatusPickerMenu: View {
             )
             .foregroundStyle(currentStatus != nil ? currentStatus!.accentColor : Color.white)
         }
-        .menuStyle(.borderlessButton)
+        .buttonStyle(.plain)
     }
 }
