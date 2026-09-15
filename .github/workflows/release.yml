@@ -33,7 +33,9 @@ jobs:
       - name: Create DMG and ZIP Archives
         run: |
           ditto -c -k --keepParent "Chibiori.app" "Chibiori.zip"
-          hdiutil create -volname "Chibiori" -srcfolder "Chibiori.app" -ov -format UDZO "Chibiori.dmg"
+          brew install create-dmg || true
+          chmod +x ./scripts/create_dmg.sh
+          ./scripts/create_dmg.sh
           ls -lh Chibiori.zip Chibiori.dmg
 
       - name: Publish GitHub Release
