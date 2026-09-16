@@ -1,9 +1,6 @@
 name: Build & Release Chibiori macOS App
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       version_tag:
@@ -30,13 +27,12 @@ jobs:
           chmod +x ./scripts/build_app.sh
           ./scripts/build_app.sh
 
-      - name: Create DMG and ZIP Archives
+      - name: Create DMG Archive
         run: |
-          ditto -c -k --keepParent "Chibiori.app" "Chibiori.zip"
           brew install create-dmg || true
           chmod +x ./scripts/create_dmg.sh
           ./scripts/create_dmg.sh
-          ls -lh Chibiori.zip Chibiori.dmg
+          ls -lh Chibiori.dmg
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -47,7 +43,6 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            Chibiori.zip
             Chibiori.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

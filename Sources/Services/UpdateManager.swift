@@ -18,7 +18,7 @@ public struct GitHubRelease: Codable, Identifiable, Sendable, Equatable {
     public let assets: [GitHubReleaseAsset]
 
     public var updateAsset: GitHubReleaseAsset? {
-        assets.first { $0.name.hasSuffix(".zip") } ?? assets.first { $0.name.hasSuffix(".dmg") }
+        assets.first { $0.name.hasSuffix(".dmg") } ?? assets.first { $0.name.hasSuffix(".zip") }
     }
 
     public var zipAsset: GitHubReleaseAsset? {
