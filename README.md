@@ -18,8 +18,8 @@
     Built with <b>SwiftUI</b>, <b>SwiftData</b>, and <b>CoreAnimation</b> for fluid 120Hz ProMotion scrolling, zero cloud lock-in, and instant offline access.
   </p>
 
-  <a href="https://github.com/Ghostkwebb/Chibiori/releases/latest/download/Chibiori.zip">
-    <img src="https://img.shields.io/badge/Download-Chibiori.app-blue?style=for-the-badge&logo=apple&logoColor=white" alt="Download Chibiori" />
+  <a href="https://github.com/Ghostkwebb/Chibiori/releases/latest/download/Chibiori.dmg">
+    <img src="https://img.shields.io/badge/Download-Chibiori.dmg-blue?style=for-the-badge&logo=apple&logoColor=white" alt="Download Chibiori" />
   </a>
 
 </div>
@@ -98,8 +98,8 @@ Search millions of anime titles across MyAnimeList and AniList with instant debo
 
 ## Installation
 
-1.  **Download**: Get the latest `Chibiori.zip` from the [Releases Page](https://github.com/Ghostkwebb/Chibiori/releases/latest).
-2.  **Unzip**: Double-click `Chibiori.zip` to extract `Chibiori.app`.
+1.  **Download**: Get the latest `Chibiori.dmg` from the [Releases Page](https://github.com/Ghostkwebb/Chibiori/releases/latest).
+2.  **Mount**: Double-click `Chibiori.dmg` to open the disk image.
 3.  **Install**: Drag `Chibiori.app` into your **`/Applications`** folder.
 4.  **Open**: Launch the app from Spotlight or Applications.
 
