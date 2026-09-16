@@ -16,14 +16,8 @@ public struct LibraryContainerView: View {
         self._allAnime = Query(sort: \TrackedAnime.dateAdded, order: .reverse)
     }
 
-    @State private var cachedFilteredAnime: [TrackedAnime] = []
-    @State private var isFilterCacheReady = false
-
     private var filteredAnime: [TrackedAnime] {
-        if isFilterCacheReady {
-            return cachedFilteredAnime
-        }
-        return computeFilteredAnime()
+        computeFilteredAnime()
     }
 
     private func computeFilteredAnime() -> [TrackedAnime] {
@@ -71,11 +65,6 @@ public struct LibraryContainerView: View {
         }
 
         return list
-    }
-
-    private func refreshFilteredAnime() {
-        cachedFilteredAnime = computeFilteredAnime()
-        isFilterCacheReady = true
     }
 
     public var body: some View {
@@ -140,7 +129,6 @@ public struct LibraryContainerView: View {
             prompt: "Search local library..."
         )
         .onAppear {
-            refreshFilteredAnime()
             let missing = allAnime.filter { $0.coverImageRemoteURL.isEmpty }
             if !missing.isEmpty && !hydrationService.isHydrating {
                 Task {
@@ -149,24 +137,6 @@ public struct LibraryContainerView: View {
             }
             let items = filteredAnime.prefix(50).map { ($0.malID, $0.coverImageRemoteURL, $0.coverImageFilename) }
             CoverImageManager.shared.prefetchCovers(items: items)
-        }
-        .onChange(of: allAnime) {
-            refreshFilteredAnime()
-        }
-        .onChange(of: watchStatusFilter) {
-            refreshFilteredAnime()
-        }
-        .onChange(of: navState.selectedAiringStatusFilter) {
-            refreshFilteredAnime()
-        }
-        .onChange(of: navState.librarySearchQuery) {
-            refreshFilteredAnime()
-        }
-        .onChange(of: navState.selectedSortOption) {
-            refreshFilteredAnime()
-        }
-        .onChange(of: navState.titleLanguagePreference) {
-            refreshFilteredAnime()
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {

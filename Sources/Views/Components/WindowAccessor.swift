@@ -26,7 +26,7 @@ private final class WindowObservingView: NSView {
         window.animationBehavior = .default
         window.setFrameAutosaveName("ChibioriMainWindow")
 
-        window.minSize = NSSize(width: 500, height: 400)
+        window.minSize = NSSize(width: 780, height: 520)
 
         if eventMonitor == nil {
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak window] event in

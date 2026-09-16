@@ -16,8 +16,7 @@ public struct AnimeCardView: View, Equatable {
         lhs.anime.currentEpisodeProgress == rhs.anime.currentEpisodeProgress &&
         lhs.anime.title == rhs.anime.title &&
         lhs.anime.englishTitle == rhs.anime.englishTitle &&
-        lhs.anime.customTitleOverride == rhs.anime.customTitleOverride &&
-        lhs.isHovered == rhs.isHovered
+        lhs.anime.customTitleOverride == rhs.anime.customTitleOverride
     }
 
     public init(

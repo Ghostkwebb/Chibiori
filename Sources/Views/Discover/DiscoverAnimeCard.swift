@@ -17,8 +17,7 @@ public struct DiscoverAnimeCard: View, Equatable {
         lhs.titleLanguagePreference == rhs.titleLanguagePreference &&
         lhs.existingTracked?.watchStatus == rhs.existingTracked?.watchStatus &&
         lhs.dto.title == rhs.dto.title &&
-        lhs.dto.titleEnglish == rhs.dto.titleEnglish &&
-        lhs.isHovered == rhs.isHovered
+        lhs.dto.titleEnglish == rhs.dto.titleEnglish
     }
 
     public init(
