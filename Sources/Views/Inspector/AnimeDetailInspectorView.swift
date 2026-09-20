@@ -200,63 +200,6 @@ public struct AnimeDetailInspectorView: View {
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
 
-                // Title Language Variant Quick-Pills
-                HStack(spacing: 5) {
-                    ForEach(TitleLanguagePreference.allCases) { pref in
-                        let titleVal = anime.displayTitle(for: pref)
-                        Button {
-                            navState.titleLanguagePreference = pref
-                        } label: {
-                            Text(pref.shortName)
-                                .font(.system(size: 9.5, weight: navState.titleLanguagePreference == pref ? .bold : .medium))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(
-                                    navState.titleLanguagePreference == pref ?
-                                    Color.purple.opacity(0.4) :
-                                    Color.white.opacity(0.1)
-                                )
-                                .foregroundStyle(navState.titleLanguagePreference == pref ? Color.white : Color.secondary)
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                        .help("\(pref.displayName): \(titleVal)")
-                    }
-
-                    Button {
-                        tempCustomTitle = anime.customTitleOverride ?? anime.displayTitle(for: navState.titleLanguagePreference)
-                        showCustomTitleEditor = true
-                    } label: {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 9))
-                            .padding(4)
-                            .background(Color.white.opacity(0.1))
-                            .clipShape(Circle())
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Edit custom title override")
-
-                    Button {
-                        Task {
-                            await refreshAllData(forceRefreshRelations: true)
-                        }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 9))
-                            .rotationEffect(isRefreshing ? .degrees(360) : .degrees(0))
-                            .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
-                            .padding(4)
-                            .background(Color.purple.opacity(0.25))
-                            .clipShape(Circle())
-                            .foregroundStyle(.purple)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isRefreshing)
-                    .help("Refresh anime status, episode count, score, relations & metadata")
-                }
-                .padding(.vertical, 2)
-
                 // Score & Airing Status Badges
                 HStack(spacing: 6) {
                     if let score = anime.malScore {
@@ -303,6 +246,8 @@ public struct AnimeDetailInspectorView: View {
                 }
 
                 dubbedLanguagesHeaderRow
+
+                quickActionsRow
             }
         }
         .padding(14)
@@ -530,7 +475,29 @@ public struct AnimeDetailInspectorView: View {
                     metadataRow(label: "Native", value: jp)
                 }
                 if let custom = anime.customTitleOverride, !custom.isEmpty {
-                    metadataRow(label: "Custom", value: custom)
+                    HStack(alignment: .top) {
+                        Text("Custom")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 80, alignment: .leading)
+                        Spacer()
+                        HStack(spacing: 5) {
+                            Text(custom)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.purple)
+                                .multilineTextAlignment(.trailing)
+                            Button {
+                                tempCustomTitle = custom
+                                showCustomTitleEditor = true
+                            } label: {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Edit custom title override")
+                        }
+                    }
                 }
                 Divider().opacity(0.3)
                 metadataRow(label: "MAL ID", value: "\(anime.malID)")
@@ -758,6 +725,101 @@ public struct AnimeDetailInspectorView: View {
         }
         .padding(20)
         .frame(width: 460, height: 390)
+    }
+
+    // MARK: - Header Quick Actions
+    private var quickActionsRow: some View {
+        ViewThatFits(in: .horizontal) {
+            // Expanded pill buttons with icon + text label
+            HStack(spacing: 6) {
+                editTitleButton(expanded: true)
+                refreshButton(expanded: true)
+            }
+
+            // Compact fallback for narrow inspector width (icon circles)
+            HStack(spacing: 6) {
+                editTitleButton(expanded: false)
+                refreshButton(expanded: false)
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    private func editTitleButton(expanded: Bool) -> some View {
+        let hasCustomTitle = anime.customTitleOverride != nil
+        return Button {
+            tempCustomTitle = anime.customTitleOverride ?? anime.displayTitle(for: navState.titleLanguagePreference)
+            showCustomTitleEditor = true
+        } label: {
+            if expanded {
+                HStack(spacing: 4) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 9))
+                    Text(hasCustomTitle ? "Custom Title" : "Edit Title")
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3.5)
+                .background(hasCustomTitle ? Color.purple.opacity(0.25) : Color.white.opacity(0.08))
+                .clipShape(Capsule())
+                .foregroundStyle(hasCustomTitle ? Color.purple : Color.secondary)
+                .overlay(
+                    Capsule()
+                        .strokeBorder(hasCustomTitle ? Color.purple.opacity(0.4) : Color.white.opacity(0.12), lineWidth: 0.8)
+                )
+            } else {
+                Image(systemName: "pencil")
+                    .font(.system(size: 9.5))
+                    .padding(5)
+                    .background(hasCustomTitle ? Color.purple.opacity(0.25) : Color.white.opacity(0.1))
+                    .clipShape(Circle())
+                    .foregroundStyle(hasCustomTitle ? Color.purple : Color.secondary)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(hasCustomTitle ? Color.purple.opacity(0.4) : Color.white.opacity(0.15), lineWidth: 0.8)
+                    )
+            }
+        }
+        .buttonStyle(.plain)
+        .help(hasCustomTitle ? "Custom title: \"\(anime.customTitleOverride!)\" (click to edit or clear)" : "Edit custom title override")
+    }
+
+    private func refreshButton(expanded: Bool) -> some View {
+        Button {
+            Task {
+                await refreshAllData(forceRefreshRelations: true)
+            }
+        } label: {
+            if expanded {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 9))
+                        .rotationEffect(isRefreshing ? .degrees(360) : .degrees(0))
+                        .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                    Text(isRefreshing ? "Refreshing..." : "Refresh")
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3.5)
+                .glassPill(tint: .purple, isSelected: false)
+            } else {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 9.5))
+                    .rotationEffect(isRefreshing ? .degrees(360) : .degrees(0))
+                    .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                    .padding(5)
+                    .background(Color.purple.opacity(0.25))
+                    .clipShape(Circle())
+                    .foregroundStyle(.purple)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(Color.purple.opacity(0.4), lineWidth: 0.8)
+                    )
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(isRefreshing)
+        .help("Refresh anime status, episode count, score, relations & metadata")
     }
 
     private func refreshAllData(forceRefreshRelations: Bool = false) async {

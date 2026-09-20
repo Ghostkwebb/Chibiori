@@ -85,30 +85,6 @@ public struct JikanAnimeDetailInspectorView: View {
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
 
-                // Title Language Variant Quick-Pills
-                HStack(spacing: 5) {
-                    ForEach(TitleLanguagePreference.allCases) { pref in
-                        let titleVal = dto.displayTitle(for: pref)
-                        Button {
-                            navState.titleLanguagePreference = pref
-                        } label: {
-                            Text(pref.shortName)
-                                .font(.system(size: 9.5, weight: navState.titleLanguagePreference == pref ? .bold : .medium))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(
-                                    navState.titleLanguagePreference == pref ?
-                                    Color.purple.opacity(0.4) :
-                                    Color.white.opacity(0.1)
-                                )
-                                .foregroundStyle(navState.titleLanguagePreference == pref ? Color.white : Color.secondary)
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                        .help("\(pref.displayName): \(titleVal)")
-                    }
-                }
-                .padding(.vertical, 2)
 
                 // Score & Airing Status Badges
                 HStack(spacing: 6) {
