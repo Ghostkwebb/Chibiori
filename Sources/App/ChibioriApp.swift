@@ -246,7 +246,7 @@ struct MainContentView: View {
         }
         .onChange(of: allAnime) {
             // Fires on any change: additions, deletions, and edits to episode progress/ratings/notes
-            CloudSyncService.shared.performAutoCloudBackup(from: allAnime)
+            CloudSyncService.shared.scheduleAutoCloudBackup(from: allAnime)
         }
         .sheet(isPresented: Bindable(UpdateManager.shared).showUpdateSheet) {
             UpdateModalView()

@@ -125,6 +125,14 @@ public final class MetadataHydrationService {
 
             try? context.save()
 
+            let coversToPrefetch = chunk.compactMap { a -> (Int, String, String?)? in
+                guard !a.coverImageRemoteURL.isEmpty else { return nil }
+                return (a.malID, a.coverImageRemoteURL, a.coverImageFilename)
+            }
+            if !coversToPrefetch.isEmpty {
+                CoverImageManager.shared.prefetchCovers(items: coversToPrefetch)
+            }
+
             processed += chunk.count
             currentProgress = Double(processed) / Double(missingAnimes.count)
             statusMessage = "Updated \(processed) of \(missingAnimes.count) anime..."

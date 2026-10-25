@@ -82,6 +82,19 @@ public final class CloudSyncService: NSObject {
 
     // MARK: - Backup / Write
 
+    private var backupDebounceTask: Task<Void, Never>?
+
+    /// Schedules an auto cloud backup debounced by 2.5 seconds to avoid repeatedly encoding JSON on every micro-edit
+    public func scheduleAutoCloudBackup(from animes: [TrackedAnime]) {
+        guard isCloudSyncEnabled, !animes.isEmpty else { return }
+        backupDebounceTask?.cancel()
+        backupDebounceTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            guard !Task.isCancelled else { return }
+            self.performAutoCloudBackup(from: animes)
+        }
+    }
+
     /// Serializes the current anime list to JSON and writes it atomically to iCloud Drive
     /// using NSFileCoordinator to prevent corruption from concurrent access.
     public func performAutoCloudBackup(from animes: [TrackedAnime]) {

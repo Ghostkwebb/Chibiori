@@ -271,9 +271,7 @@ public final class TrackedAnime {
                 dateStarted = Date()
             }
         case .completed:
-            if dateCompleted == nil {
-                dateCompleted = Date()
-            }
+            dateCompleted = Date()
             if let total = totalEpisodes, currentEpisodeProgress < total {
                 currentEpisodeProgress = total
             }

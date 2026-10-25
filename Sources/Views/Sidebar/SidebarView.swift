@@ -11,11 +11,17 @@ public struct SidebarView: View {
         self._selection = selection
     }
 
-    private func count(for status: WatchStatus) -> Int {
-        allAnime.filter { $0.watchStatus == status }.count
+    private var statusCounts: [WatchStatus: Int] {
+        var counts: [WatchStatus: Int] = [:]
+        for anime in allAnime {
+            counts[anime.watchStatus, default: 0] += 1
+        }
+        return counts
     }
 
     public var body: some View {
+        let counts = statusCounts
+
         VStack(alignment: .leading, spacing: 0) {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -35,7 +41,7 @@ public struct SidebarView: View {
                         }
 
                         ForEach(WatchStatus.allCases) { status in
-                            let cnt = count(for: status)
+                            let cnt = counts[status, default: 0]
                             SidebarItemButton(
                                 title: status.displayName,
                                 systemImage: status.systemImage,

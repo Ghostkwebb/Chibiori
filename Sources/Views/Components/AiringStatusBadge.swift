@@ -13,7 +13,6 @@ public struct AiringStatusBadge: View {
                 Circle()
                     .fill(status.dotColor)
                     .frame(width: 5.5, height: 5.5)
-                    .shadow(color: status.dotColor.opacity(0.85), radius: 3, x: 0, y: 0)
 
                 Text(status.shortDisplayName)
                     .font(.system(size: 9.5, weight: .bold, design: .rounded))
@@ -28,7 +27,6 @@ public struct AiringStatusBadge: View {
                 Capsule()
                     .strokeBorder(status.dotColor.opacity(0.45), lineWidth: 0.8)
             )
-            .shadow(color: Color.black.opacity(0.35), radius: 3, x: 0, y: 1.5)
         }
     }
 }

@@ -74,15 +74,16 @@ public struct RelatedSeasonsCardView: View {
             // List of related anime seasons
             VStack(spacing: 8) {
                 ForEach(relatedAnime) { rel in
+                    let match = findMatchingTracked(for: rel)
                     RelatedAnimeRowView(
                         item: rel,
-                        trackedMatch: allTrackedAnime.first(where: { $0.malID == rel.malID }),
+                        trackedMatch: match,
                         titleLanguagePreference: navState.titleLanguagePreference
                     ) {
-                        if let matching = allTrackedAnime.first(where: { $0.malID == rel.malID }) {
-                            navState.selectTracked(matching.persistentModelID)
+                        if let match {
+                            navState.navigateTo(tracked: match)
                         } else {
-                            navState.selectDTO(rel.asJikanDTO)
+                            navState.navigateTo(dto: rel.asJikanDTO)
                         }
                     }
                 }
@@ -96,6 +97,14 @@ public struct RelatedSeasonsCardView: View {
             )
         }
     }
+
+    private func findMatchingTracked(for item: RelatedAnimeItem) -> TrackedAnime? {
+        allTrackedAnime.first { tracked in
+            (item.malID > 0 && tracked.malID == item.malID) ||
+            tracked.title.localizedCaseInsensitiveCompare(item.title) == .orderedSame ||
+            (tracked.englishTitle != nil && item.englishTitle != nil && tracked.englishTitle!.localizedCaseInsensitiveCompare(item.englishTitle!) == .orderedSame)
+        }
+    }
 }
 
 @MainActor
@@ -106,6 +115,13 @@ struct RelatedAnimeRowView: View {
     let action: () -> Void
 
     @State private var isHovered = false
+
+    private var resolvedAiringStatus: AiringStatus? {
+        if let airing = item.airingStatus {
+            return airing
+        }
+        return trackedMatch?.airingStatus
+    }
 
     var body: some View {
         Button(action: action) {
@@ -139,15 +155,15 @@ struct RelatedAnimeRowView: View {
 
                 // Details
                 VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 4) {
                         // Relation Badge
                         HStack(spacing: 3) {
                             Image(systemName: item.relationIcon)
                                 .font(.system(size: 8))
                             Text(item.relationDisplayName)
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.system(size: 8.5, weight: .bold))
                         }
-                        .padding(.horizontal, 6)
+                        .padding(.horizontal, 5)
                         .padding(.vertical, 2)
                         .background(item.badgeColor.opacity(0.18))
                         .foregroundStyle(item.badgeColor)
@@ -156,20 +172,50 @@ struct RelatedAnimeRowView: View {
                             Capsule().stroke(item.badgeColor.opacity(0.35), lineWidth: 0.8)
                         )
 
-                        // Library Status Badge if in library
+                        // Airing Status Badge (Airing / Finished / Upcoming)
+                        if let airing = resolvedAiringStatus {
+                            HStack(spacing: 3) {
+                                Circle()
+                                    .fill(airing.dotColor)
+                                    .frame(width: 4.5, height: 4.5)
+                                Text(airing.shortDisplayName)
+                                    .font(.system(size: 8.5, weight: .semibold, design: .rounded))
+                            }
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(airing.dotColor.opacity(0.16))
+                            .foregroundStyle(airing.dotColor)
+                            .clipShape(Capsule())
+                            .overlay(
+                                Capsule().stroke(airing.dotColor.opacity(0.35), lineWidth: 0.8)
+                            )
+                        } else if let raw = item.status, !raw.isEmpty {
+                            Text(raw.replacingOccurrences(of: "_", with: " ").capitalized)
+                                .font(.system(size: 8))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Color.white.opacity(0.08))
+                                .foregroundStyle(.secondary)
+                                .clipShape(Capsule())
+                        }
+
+                        // Library Status Badge if in library (Plan to Watch / Watching / Completed, etc.)
                         if let tracked = trackedMatch {
                             HStack(spacing: 3) {
                                 Circle()
                                     .fill(tracked.watchStatus.accentColor)
-                                    .frame(width: 5, height: 5)
+                                    .frame(width: 4.5, height: 4.5)
                                 Text(tracked.watchStatus.displayName)
                                     .font(.system(size: 8.5, weight: .medium))
                             }
-                            .padding(.horizontal, 6)
+                            .padding(.horizontal, 5)
                             .padding(.vertical, 2)
                             .background(tracked.watchStatus.accentColor.opacity(0.15))
                             .foregroundStyle(tracked.watchStatus.accentColor)
                             .clipShape(Capsule())
+                            .overlay(
+                                Capsule().stroke(tracked.watchStatus.accentColor.opacity(0.3), lineWidth: 0.8)
+                            )
                         }
                     }
 

@@ -47,6 +47,21 @@ public struct AnimeGridView: View {
             .focusEffectDisabled()
             .onAppear {
                 isFocused = true
+                if let selectedAnimeID {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            proxy.scrollTo(selectedAnimeID, anchor: .center)
+                        }
+                    }
+                }
+            }
+            .onChange(of: selectedAnimeID) { _, newID in
+                guard let newID else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        proxy.scrollTo(newID, anchor: .center)
+                    }
+                }
             }
             .onTapGesture {
                 isFocused = true

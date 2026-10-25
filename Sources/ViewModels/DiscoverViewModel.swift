@@ -73,7 +73,7 @@ public final class DiscoverViewModel {
 
         searchTask = Task {
             // Debounce delay to prevent spamming while typing
-            try? await Task.sleep(nanoseconds: 500_000_000)
+            try? await Task.sleep(nanoseconds: 250_000_000)
             guard !Task.isCancelled else { return }
 
             do {

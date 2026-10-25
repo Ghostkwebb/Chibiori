@@ -8,50 +8,42 @@ public struct GlassCardModifier: ViewModifier {
     var isSelected: Bool = false
     var tintColor: Color? = nil
 
+    private var cardBackgroundColor: Color {
+        if isSelected {
+            return Color.accentColor.opacity(0.18)
+        } else if isHovered {
+            return Color(nsColor: .controlBackgroundColor).opacity(0.78)
+        } else if let tint = tintColor {
+            return tint.opacity(0.10)
+        } else {
+            return Color(nsColor: .controlBackgroundColor).opacity(0.65)
+        }
+    }
+
     public func body(content: Content) -> some View {
         content
             .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.68))
-
-                    if let tint = tintColor {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(tint.opacity(0.08))
-                    }
-
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(Color.accentColor.opacity(0.12))
-                    } else if isHovered {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(Color.white.opacity(0.05))
-                    }
-                }
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(cardBackgroundColor)
+                    .shadow(
+                        color: isSelected
+                            ? Color.accentColor.opacity(0.35)
+                            : Color.black.opacity(0.12),
+                        radius: isSelected ? 6 : 2,
+                        x: 0,
+                        y: 1
+                    )
             )
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(
-                        LinearGradient(
-                            colors: isSelected
-                                ? [Color.accentColor.opacity(0.8), Color.accentColor.opacity(0.4)]
-                                : isHovered
-                                    ? [Color.white.opacity(0.4), Color.white.opacity(0.15)]
-                                    : [Color.white.opacity(0.18), Color.white.opacity(0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: isSelected ? 1.8 : 1.0
+                        isSelected
+                            ? Color.accentColor.opacity(0.85)
+                            : isHovered
+                                ? Color.white.opacity(0.28)
+                                : Color.white.opacity(0.12),
+                        lineWidth: isSelected ? 1.5 : 1.0
                     )
-            )
-            .shadow(
-                color: isSelected
-                    ? Color.accentColor.opacity(0.35)
-                    : Color.black.opacity(0.10),
-                radius: isSelected ? 6 : 2,
-                x: 0,
-                y: 1
             )
     }
 }

@@ -213,29 +213,34 @@ public struct FranchiseHubSheetView: View {
         }
     }
 
-    private var trackedLookup: [Int: TrackedAnime] {
-        Dictionary(allTrackedAnime.map { ($0.malID, $0) }, uniquingKeysWith: { first, _ in first })
+    private func findMatchingTracked(for item: RelatedAnimeItem) -> TrackedAnime? {
+        allTrackedAnime.first { tracked in
+            (item.malID > 0 && tracked.malID == item.malID) ||
+            tracked.title.localizedCaseInsensitiveCompare(item.title) == .orderedSame ||
+            (tracked.englishTitle != nil && item.englishTitle != nil && tracked.englishTitle!.localizedCaseInsensitiveCompare(item.englishTitle!) == .orderedSame)
+        }
     }
 
     // MARK: - List View
     private var itemsListView: some View {
-        let lookup = trackedLookup
-        return ScrollView {
+        ScrollView {
             LazyVStack(spacing: 6) {
                 ForEach(filteredItems) { item in
-                    let match = lookup[item.malID]
+                    let match = findMatchingTracked(for: item)
                     FranchiseItemRow(
                         item: item,
-                        isCurrent: item.malID == currentMalID,
+                        isCurrent: (item.malID > 0 && item.malID == currentMalID) || item.title.localizedCaseInsensitiveCompare(currentTitle) == .orderedSame,
                         trackedMatch: match,
                         titlePreference: navState.titleLanguagePreference,
                         onInspect: {
-                            if let match {
-                                navState.selectTracked(match.persistentModelID)
-                            } else {
-                                navState.selectDTO(item.asJikanDTO)
-                            }
                             dismiss()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                                if let match = findMatchingTracked(for: item) {
+                                    navState.navigateTo(tracked: match)
+                                } else {
+                                    navState.navigateTo(dto: item.asJikanDTO)
+                                }
+                            }
                         }
                     )
                 }
@@ -467,9 +472,25 @@ struct FranchiseItemRow: View {
                     Capsule().stroke(isCurrent ? Color.yellow.opacity(0.5) : item.badgeColor.opacity(0.35), lineWidth: 0.8)
                 )
 
-                if let st = item.status {
+                if let airing = item.airingStatus ?? trackedMatch?.airingStatus {
+                    HStack(spacing: 3) {
+                        Circle()
+                            .fill(airing.dotColor)
+                            .frame(width: 4.5, height: 4.5)
+                        Text(airing.shortDisplayName)
+                            .font(.system(size: 8.5, weight: .semibold, design: .rounded))
+                    }
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(airing.dotColor.opacity(0.16))
+                    .foregroundStyle(airing.dotColor)
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule().stroke(airing.dotColor.opacity(0.35), lineWidth: 0.8)
+                    )
+                } else if let st = item.status {
                     Text(st.replacingOccurrences(of: "_", with: " ").capitalized)
-                        .font(.system(size: 9))
+                        .font(.system(size: 8.5))
                         .foregroundStyle(.secondary)
                 }
             }

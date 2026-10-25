@@ -95,6 +95,17 @@ public enum LibrarySortOption: String, CaseIterable, Identifiable {
     case lastUpdatedDesc = "Recently Updated"
 
     public var id: String { rawValue }
+
+    public func displayName(for watchStatus: WatchStatus?) -> String {
+        if watchStatus == .completed {
+            switch self {
+            case .dateAddedDesc: return "Date Completed (Newest First)"
+            case .dateAddedAsc: return "Date Completed (Oldest First)"
+            default: return rawValue
+            }
+        }
+        return rawValue
+    }
 }
 
 @Observable
@@ -235,5 +246,39 @@ public final class NavigationState {
         self.selectedJikanDTO = dto
         self.selectedAnimeID = nil
         self.showInspector = true
+    }
+
+    public func navigateTo(tracked: TrackedAnime) {
+        // Ensure sidebar selection includes this anime
+        if let currentStatus = selectedSidebar?.filterStatus {
+            if currentStatus != tracked.watchStatus {
+                selectedSidebar = .watchStatus(tracked.watchStatus)
+            }
+        } else if selectedSidebar != .allAnime {
+            selectedSidebar = .watchStatus(tracked.watchStatus)
+        }
+
+        // Clear query if it would filter out the anime
+        let query = librarySearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !query.isEmpty {
+            let matches = tracked.title.localizedCaseInsensitiveContains(query) ||
+                (tracked.englishTitle?.localizedCaseInsensitiveContains(query) ?? false) ||
+                (tracked.japaneseTitle?.localizedCaseInsensitiveContains(query) ?? false) ||
+                (tracked.customTitleOverride?.localizedCaseInsensitiveContains(query) ?? false)
+            if !matches {
+                librarySearchQuery = ""
+            }
+        }
+
+        // Clear airing filter if it would filter out the anime
+        if let airing = selectedAiringStatusFilter, tracked.airingStatus != airing {
+            selectedAiringStatusFilter = nil
+        }
+
+        selectTracked(tracked.persistentModelID)
+    }
+
+    public func navigateTo(dto: JikanAnimeDTO) {
+        selectDTO(dto)
     }
 }

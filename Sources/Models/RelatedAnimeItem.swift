@@ -125,6 +125,11 @@ public struct RelatedAnimeItem: Identifiable, Sendable, Codable, Equatable, Hash
         }
     }
 
+    public var airingStatus: AiringStatus? {
+        guard let st = status, !st.isEmpty else { return nil }
+        return AiringStatus.from(raw: st)
+    }
+
     public func displayTitle(for preference: TitleLanguagePreference = .english) -> String {
         switch preference {
         case .english:

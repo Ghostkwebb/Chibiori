@@ -95,7 +95,7 @@ public struct DiscoverView: View {
                         VStack(spacing: 14) {
                             ProgressView()
                                 .scaleEffect(1.2)
-                            Text("Fetching MyAnimeList metadata...")
+                            Text(viewModel.searchQuery.isEmpty ? "Discovering anime catalog..." : "Searching anime database...")
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundStyle(.secondary)
                         }

@@ -25,7 +25,7 @@ public struct CachedCoverImage: View {
     }
 
     private var currentDisplayImage: NSImage? {
-        if let memoryImage = CoverImageManager.shared.synchronousImage(malID: malID, existingFilename: localFilename) {
+        if let memoryImage = CoverImageManager.shared.cachedImage(for: malID) {
             return memoryImage
         }
         return asyncImage
@@ -62,17 +62,34 @@ public struct CachedCoverImage: View {
                 imageContent
             }
         }
-        .task(id: "\(malID)_\(remoteURLString)") {
-            if CoverImageManager.shared.synchronousImage(malID: malID, existingFilename: localFilename) != nil {
+        .task(id: "\(malID)_\(remoteURLString)_\(localFilename ?? "")") {
+            // 1. Instant check memory cache
+            if let cached = CoverImageManager.shared.cachedImage(for: malID) {
+                if self.asyncImage !== cached {
+                    self.asyncImage = cached
+                }
                 return
             }
-            let (fetchedImage, _) = await CoverImageManager.shared.loadImage(
+
+            // 2. Load from disk in background thread without blocking main thread
+            let diskImage = await Task.detached(priority: .userInitiated) {
+                CoverImageManager.shared.loadDiskImage(malID: malID, existingFilename: localFilename)
+            }.value
+
+            if let diskImage {
+                self.asyncImage = diskImage
+                return
+            }
+
+            // 3. Fallback to network download if URL available
+            guard !remoteURLString.isEmpty else { return }
+            let (netImage, _) = await CoverImageManager.shared.loadImage(
                 malID: malID,
                 remoteURLString: remoteURLString,
                 existingFilename: localFilename
             )
-            if let fetchedImage {
-                self.asyncImage = fetchedImage
+            if let netImage {
+                self.asyncImage = netImage
             }
         }
     }

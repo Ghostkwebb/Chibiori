@@ -7,8 +7,8 @@ public final class MemoryImageCache: @unchecked Sendable {
     private let cache = NSCache<NSString, NSImage>()
 
     public init() {
-        cache.countLimit = 300
-        cache.totalCostLimit = 150 * 1024 * 1024 // 150MB RAM cache
+        cache.countLimit = 2000
+        cache.totalCostLimit = 512 * 1024 * 1024 // 512MB RAM cache
     }
 
     public func image(for malID: Int) -> NSImage? {
@@ -43,7 +43,7 @@ public actor CoverImageManager {
 
     public init() {}
 
-    /// Fast synchronous memory-cache check helper
+    /// Fast synchronous memory-cache check helper (0ms latency, zero main-thread disk I/O)
     public nonisolated func cachedImage(for malID: Int) -> NSImage? {
         MemoryImageCache.shared.image(for: malID)
     }
@@ -54,22 +54,27 @@ public actor CoverImageManager {
         return appSupport.appendingPathComponent("Chibiori/Covers/\(filename)")
     }
 
-    /// Fast synchronous check against memory cache and local disk without actor queue serialization
-    public nonisolated func synchronousImage(malID: Int, existingFilename: String?) -> NSImage? {
+    /// Instant in-memory check for UI body evaluation. NEVER performs synchronous disk I/O on main thread.
+    public nonisolated func synchronousImage(malID: Int, existingFilename: String? = nil) -> NSImage? {
+        MemoryImageCache.shared.image(for: malID)
+    }
+
+    /// Background disk loader with downsampling, safe to run concurrently across any thread
+    public nonisolated func loadDiskImage(malID: Int, existingFilename: String? = nil) -> NSImage? {
         if let memoryImage = MemoryImageCache.shared.image(for: malID) {
             return memoryImage
         }
-        guard let existingFilename, !existingFilename.isEmpty else { return nil }
-        let diskURL = localFileURL(for: existingFilename)
-        if FileManager.default.fileExists(atPath: diskURL.path),
-           let data = try? Data(contentsOf: diskURL) {
-            let img = Self.downsample(data: data) ?? NSImage(data: data)
-            if let img {
-                MemoryImageCache.shared.setImage(img, for: malID, cost: data.count)
-            }
-            return img
+        let targetFilename = (existingFilename != nil && !existingFilename!.isEmpty) ? existingFilename! : "cover_\(malID).jpg"
+        let diskURL = localFileURL(for: targetFilename)
+        guard FileManager.default.fileExists(atPath: diskURL.path),
+              let data = try? Data(contentsOf: diskURL) else {
+            return nil
         }
-        return nil
+        let img = Self.downsample(data: data) ?? NSImage(data: data)
+        if let img {
+            MemoryImageCache.shared.setImage(img, for: malID, cost: data.count)
+        }
+        return img
     }
 
     /// High performance downsampling to keep RAM and GPU texture uploads minimal
@@ -97,8 +102,6 @@ public actor CoverImageManager {
 
     /// Loads an image for an anime given its malID, remote URL, and optional cached local filename.
     public func loadImage(malID: Int, remoteURLString: String, existingFilename: String? = nil) async -> (image: NSImage?, localFilename: String?) {
-        guard !remoteURLString.isEmpty else { return (nil, nil) }
-
         // 1. Instant check memory cache
         if let cachedImage = MemoryImageCache.shared.image(for: malID) {
             let filename = existingFilename ?? "cover_\(malID).jpg"
@@ -106,24 +109,16 @@ public actor CoverImageManager {
         }
 
         // 2. Check disk cache concurrently without blocking actor mailbox
-        let targetFilename = existingFilename ?? "cover_\(malID).jpg"
-        let diskURL = coversDirectoryURL.appendingPathComponent(targetFilename)
-
-        let diskImage: NSImage? = await Task.detached(priority: .userInitiated) {
-            guard FileManager.default.fileExists(atPath: diskURL.path),
-                  let data = try? Data(contentsOf: diskURL) else {
-                return nil
-            }
-            let img = Self.downsample(data: data) ?? NSImage(data: data)
-            if let img {
-                MemoryImageCache.shared.setImage(img, for: malID, cost: data.count)
-            }
-            return img
+        let targetFilename = (existingFilename != nil && !existingFilename!.isEmpty) ? existingFilename! : "cover_\(malID).jpg"
+        let diskImage = await Task.detached(priority: .userInitiated) {
+            Self.shared.loadDiskImage(malID: malID, existingFilename: targetFilename)
         }.value
 
         if let diskImage {
             return (diskImage, targetFilename)
         }
+
+        guard !remoteURLString.isEmpty else { return (nil, nil) }
 
         // 3. Prevent duplicate in-flight network requests
         if let ongoing = inFlightTasks[remoteURLString] {
@@ -131,6 +126,7 @@ public actor CoverImageManager {
             return (image, targetFilename)
         }
 
+        let diskURL = coversDirectoryURL.appendingPathComponent(targetFilename)
         let downloadTask = Task<NSImage?, Never> {
             guard let url = URL(string: remoteURLString) else { return nil }
             do {
@@ -163,16 +159,12 @@ public actor CoverImageManager {
         return (resultImage, targetFilename)
     }
 
-    /// Background prefetch helper to pre-warm covers into RAM cache
+    /// Background prefetch helper to pre-warm covers into RAM cache in parallel
     public nonisolated func prefetchCovers(items: [(malID: Int, url: String, filename: String?)]) {
-        for item in items {
-            guard MemoryImageCache.shared.image(for: item.malID) == nil else { continue }
-            Task(priority: .background) {
-                _ = await CoverImageManager.shared.loadImage(
-                    malID: item.malID,
-                    remoteURLString: item.url,
-                    existingFilename: item.filename
-                )
+        Task.detached(priority: .utility) {
+            for item in items {
+                if Task.isCancelled { break }
+                _ = CoverImageManager.shared.loadDiskImage(malID: item.malID, existingFilename: item.filename)
             }
         }
     }

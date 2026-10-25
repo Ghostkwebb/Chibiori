@@ -21,40 +21,45 @@ public struct LibraryContainerView: View {
     }
 
     private func computeFilteredAnime() -> [TrackedAnime] {
-        var list = allAnime
-
-        // 1. Watch Status Filter (Sidebar selection)
-        if let status = watchStatusFilter {
-            list = list.filter { $0.watchStatus == status }
-        }
-
-        // 2. Airing Status Filter (Toolbar pill)
-        if let airing = navState.selectedAiringStatusFilter {
-            list = list.filter { $0.airingStatus == airing }
-        }
-
-        // 3. Local Search Query
+        let status = watchStatusFilter
+        let airing = navState.selectedAiringStatusFilter
         let query = navState.librarySearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !query.isEmpty {
-            list = list.filter { anime in
-                anime.title.localizedCaseInsensitiveContains(query) ||
-                (anime.englishTitle?.localizedCaseInsensitiveContains(query) ?? false) ||
-                (anime.japaneseTitle?.localizedCaseInsensitiveContains(query) ?? false) ||
-                (anime.customTitleOverride?.localizedCaseInsensitiveContains(query) ?? false) ||
-                anime.genres.contains(where: { $0.localizedCaseInsensitiveContains(query) })
+        let hasQuery = !query.isEmpty
+
+        // Single combined filter pass to avoid 3 separate array allocations
+        var list = allAnime.filter { anime in
+            if let status, anime.watchStatus != status { return false }
+            if let airing, anime.airingStatus != airing { return false }
+            if hasQuery {
+                let matches = anime.title.localizedCaseInsensitiveContains(query) ||
+                    (anime.englishTitle?.localizedCaseInsensitiveContains(query) ?? false) ||
+                    (anime.japaneseTitle?.localizedCaseInsensitiveContains(query) ?? false) ||
+                    (anime.customTitleOverride?.localizedCaseInsensitiveContains(query) ?? false) ||
+                    anime.genres.contains(where: { $0.localizedCaseInsensitiveContains(query) })
+                if !matches { return false }
             }
+            return true
         }
 
-        // 4. Custom Sort Option
+        // Custom Sort Option
         switch navState.selectedSortOption {
         case .dateAddedDesc:
-            list.sort { $0.dateAdded > $1.dateAdded }
+            if watchStatusFilter == .completed {
+                list.sort { ($0.dateCompleted ?? $0.statusLastUpdatedAt) > ($1.dateCompleted ?? $1.statusLastUpdatedAt) }
+            } else {
+                list.sort { $0.dateAdded > $1.dateAdded }
+            }
         case .dateAddedAsc:
-            list.sort { $0.dateAdded < $1.dateAdded }
+            if watchStatusFilter == .completed {
+                list.sort { ($0.dateCompleted ?? $0.statusLastUpdatedAt) < ($1.dateCompleted ?? $1.statusLastUpdatedAt) }
+            } else {
+                list.sort { $0.dateAdded < $1.dateAdded }
+            }
         case .titleAsc:
+            let pref = navState.titleLanguagePreference
             list.sort {
-                $0.displayTitle(for: navState.titleLanguagePreference)
-                    .localizedCaseInsensitiveCompare($1.displayTitle(for: navState.titleLanguagePreference)) == .orderedAscending
+                $0.displayTitle(for: pref)
+                    .localizedCaseInsensitiveCompare($1.displayTitle(for: pref)) == .orderedAscending
             }
         case .scoreDesc:
             list.sort { ($0.malScore ?? 0) > ($1.malScore ?? 0) }
@@ -69,6 +74,7 @@ public struct LibraryContainerView: View {
 
     public var body: some View {
         @Bindable var state = navState
+        let currentFilteredAnime = computeFilteredAnime()
 
         ZStack {
             AmbientGlowBackground()
@@ -97,18 +103,18 @@ public struct LibraryContainerView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
-                if filteredAnime.isEmpty {
+                if currentFilteredAnime.isEmpty {
                     emptyStateView
                 } else {
                     switch state.viewMode {
                     case .grid:
                         AnimeGridView(
-                            animes: filteredAnime,
+                            animes: currentFilteredAnime,
                             selectedAnimeID: $state.selectedAnimeID
                         )
                     case .table:
                         AnimeTableView(
-                            animes: filteredAnime,
+                            animes: currentFilteredAnime,
                             selectedAnimeID: $state.selectedAnimeID
                         )
                     }
@@ -122,7 +128,7 @@ public struct LibraryContainerView: View {
             await hydrationService.hydrateMissingMetadata(context: modelContext)
             await hydrationService.syncActiveAiringStatuses(context: modelContext)
         }
-        .navigationSubtitle("\(filteredAnime.count) \(filteredAnime.count == 1 ? "anime" : "animes")")
+        .navigationSubtitle("\(currentFilteredAnime.count) \(currentFilteredAnime.count == 1 ? "anime" : "animes")")
         .searchable(
             text: $state.librarySearchQuery,
             placement: .toolbar,
@@ -135,7 +141,7 @@ public struct LibraryContainerView: View {
                     await hydrationService.hydrateMissingMetadata(context: modelContext)
                 }
             }
-            let items = filteredAnime.prefix(50).map { ($0.malID, $0.coverImageRemoteURL, $0.coverImageFilename) }
+            let items = allAnime.map { ($0.malID, $0.coverImageRemoteURL, $0.coverImageFilename) }
             CoverImageManager.shared.prefetchCovers(items: items)
         }
         .toolbar {
@@ -162,7 +168,7 @@ public struct LibraryContainerView: View {
                 Menu {
                     Picker("Sort Order", selection: $state.selectedSortOption) {
                         ForEach(LibrarySortOption.allCases) { option in
-                            Text(option.rawValue).tag(option)
+                            Text(option.displayName(for: watchStatusFilter)).tag(option)
                         }
                     }
                     .pickerStyle(.inline)
