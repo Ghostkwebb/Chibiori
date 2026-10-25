@@ -654,26 +654,34 @@ public final class AnimeRelationsService {
         return items
     }
 
+    private static let cleanPatterns: [NSRegularExpression] = [
+        try! NSRegularExpression(pattern: "\\d+(st|nd|rd|th)\\s+season", options: .caseInsensitive),
+        try! NSRegularExpression(pattern: "season\\s+\\d+", options: .caseInsensitive),
+        try! NSRegularExpression(pattern: "part\\s+\\d+", options: .caseInsensitive),
+        try! NSRegularExpression(pattern: "cour\\s+\\d+", options: .caseInsensitive),
+        try! NSRegularExpression(pattern: "the\\s+movie.*", options: .caseInsensitive),
+        try! NSRegularExpression(pattern: "[:!?,.-]+", options: .caseInsensitive)
+    ]
+    private static let yearRegex = try! NSRegularExpression(pattern: "\\b(19|20)\\d{2}\\b")
+    private static let partRegex = try! NSRegularExpression(pattern: "(part|cour)\\s*(\\d+)", options: .caseInsensitive)
+    private static let seasonRegex = try! NSRegularExpression(pattern: "(season|part|cour)\\s*(\\d+)", options: .caseInsensitive)
+    private static let ordinalSeasonRegex = try! NSRegularExpression(pattern: "(\\d+)(st|nd|rd|th)\\s*season", options: .caseInsensitive)
+
     private func extractYear(from anime: TrackedAnime) -> Int? {
         guard let s = anime.seasonYear else { return nil }
-        if let match = s.range(of: "\\b(19|20)\\d{2}\\b", options: .regularExpression) {
-            return Int(s[match])
+        let range = NSRange(location: 0, length: s.utf16.count)
+        if let match = Self.yearRegex.firstMatch(in: s, options: [], range: range),
+           let r = Range(match.range, in: s) {
+            return Int(s[r])
         }
         return nil
     }
 
     public func cleanFranchiseRoot(_ raw: String) -> String {
         var str = raw.lowercased()
-        let patterns = [
-            "\\d+(st|nd|rd|th)\\s+season",
-            "season\\s+\\d+",
-            "part\\s+\\d+",
-            "cour\\s+\\d+",
-            "the\\s+movie.*",
-            "[:!?,.-]+"
-        ]
-        for pat in patterns {
-            str = str.replacingOccurrences(of: pat, with: " ", options: .regularExpression)
+        for regex in Self.cleanPatterns {
+            let range = NSRange(location: 0, length: str.utf16.count)
+            str = regex.stringByReplacingMatches(in: str, options: [], range: range, withTemplate: " ")
         }
         return str.split(separator: " ").joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -711,25 +719,27 @@ public final class AnimeRelationsService {
 
     private func extractPartNumber(_ str: String) -> Int? {
         let lower = str.lowercased()
-        if let match = lower.range(of: "(part|cour)\\s*(\\d+)", options: .regularExpression) {
-            let sub = String(lower[match])
-            let nums = sub.compactMap { Int(String($0)) }
-            return nums.first
+        let range = NSRange(location: 0, length: lower.utf16.count)
+        if let match = Self.partRegex.firstMatch(in: lower, options: [], range: range),
+           match.numberOfRanges > 2,
+           let r = Range(match.range(at: 2), in: lower) {
+            return Int(lower[r])
         }
         return nil
     }
 
     private func extractSeasonNumber(_ str: String) -> Int? {
         let lower = str.lowercased()
-        if let match = lower.range(of: "(season|part|cour)\\s*(\\d+)", options: .regularExpression) {
-            let sub = String(lower[match])
-            let nums = sub.compactMap { Int(String($0)) }
-            return nums.first
+        let range = NSRange(location: 0, length: lower.utf16.count)
+        if let match = Self.seasonRegex.firstMatch(in: lower, options: [], range: range),
+           match.numberOfRanges > 2,
+           let r = Range(match.range(at: 2), in: lower) {
+            return Int(lower[r])
         }
-        if let match = lower.range(of: "(\\d+)(st|nd|rd|th)\\s*season", options: .regularExpression) {
-            let sub = String(lower[match])
-            let nums = sub.compactMap { Int(String($0)) }
-            return nums.first
+        if let match = Self.ordinalSeasonRegex.firstMatch(in: lower, options: [], range: range),
+           match.numberOfRanges > 1,
+           let r = Range(match.range(at: 1), in: lower) {
+            return Int(lower[r])
         }
         return nil
     }

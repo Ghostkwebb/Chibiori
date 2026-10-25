@@ -72,9 +72,14 @@ public struct RelatedSeasonsCardView: View {
             }
 
             // List of related anime seasons
+            let trackedByID: [Int: TrackedAnime] = Dictionary(
+                allTrackedAnime.map { ($0.malID, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
+
             VStack(spacing: 8) {
                 ForEach(relatedAnime) { rel in
-                    let match = findMatchingTracked(for: rel)
+                    let match = findMatchingTracked(for: rel, map: trackedByID)
                     RelatedAnimeRowView(
                         item: rel,
                         trackedMatch: match,
@@ -98,11 +103,15 @@ public struct RelatedSeasonsCardView: View {
         }
     }
 
-    private func findMatchingTracked(for item: RelatedAnimeItem) -> TrackedAnime? {
-        allTrackedAnime.first { tracked in
-            (item.malID > 0 && tracked.malID == item.malID) ||
-            tracked.title.localizedCaseInsensitiveCompare(item.title) == .orderedSame ||
-            (tracked.englishTitle != nil && item.englishTitle != nil && tracked.englishTitle!.localizedCaseInsensitiveCompare(item.englishTitle!) == .orderedSame)
+    private func findMatchingTracked(for item: RelatedAnimeItem, map: [Int: TrackedAnime]) -> TrackedAnime? {
+        if item.malID > 0, let match = map[item.malID] {
+            return match
+        }
+        let itemTitle = item.title.lowercased()
+        let itemEn = item.englishTitle?.lowercased()
+        return allTrackedAnime.first { tracked in
+            tracked.title.lowercased() == itemTitle ||
+            (itemEn != nil && tracked.englishTitle?.lowercased() == itemEn)
         }
     }
 }
@@ -126,16 +135,13 @@ struct RelatedAnimeRowView: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                // Cover Thumbnail
-                if let cover = item.coverImageURL, let url = URL(string: cover) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let img):
-                            img.resizable().aspectRatio(contentMode: .fill)
-                        default:
-                            Color.white.opacity(0.06)
-                        }
-                    }
+                // Cover Thumbnail with instant memory cache & downsampler
+                if let cover = item.coverImageURL, !cover.isEmpty {
+                    CachedCoverImage(
+                        malID: item.malID,
+                        remoteURLString: cover,
+                        cornerRadius: 6
+                    )
                     .frame(width: 38, height: 52)
                     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                     .overlay(

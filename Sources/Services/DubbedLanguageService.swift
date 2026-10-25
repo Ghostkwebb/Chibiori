@@ -40,6 +40,11 @@ public actor DubbedLanguageService {
         return false
     }
 
+    /// Returns snapshot of all MAL IDs verified to have an English dub for fast batch lookup
+    public func verifiedEnglishDubIDs() -> Set<Int> {
+        regionalDubIndex["english"] ?? []
+    }
+
     /// Fetches all dubbed and original audio languages for a given MyAnimeList ID
     public func fetchDubbedLanguages(malId: Int, forceRefresh: Bool = false) async -> [DubbedLanguage] {
         if !forceRefresh, let cached = memoryCache[malId] {

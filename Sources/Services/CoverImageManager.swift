@@ -67,7 +67,7 @@ public actor CoverImageManager {
         let targetFilename = (existingFilename != nil && !existingFilename!.isEmpty) ? existingFilename! : "cover_\(malID).jpg"
         let diskURL = localFileURL(for: targetFilename)
         guard FileManager.default.fileExists(atPath: diskURL.path),
-              let data = try? Data(contentsOf: diskURL) else {
+              let data = try? Data(contentsOf: diskURL, options: .mappedIfSafe) else {
             return nil
         }
         let img = Self.downsample(data: data) ?? NSImage(data: data)
@@ -159,12 +159,17 @@ public actor CoverImageManager {
         return (resultImage, targetFilename)
     }
 
-    /// Background prefetch helper to pre-warm covers into RAM cache in parallel
+    /// Background prefetch helper to pre-warm covers into RAM cache in parallel across cores
     public nonisolated func prefetchCovers(items: [(malID: Int, url: String, filename: String?)]) {
+        guard !items.isEmpty else { return }
         Task.detached(priority: .utility) {
-            for item in items {
-                if Task.isCancelled { break }
-                _ = CoverImageManager.shared.loadDiskImage(malID: item.malID, existingFilename: item.filename)
+            await withTaskGroup(of: Void.self) { group in
+                for item in items {
+                    group.addTask {
+                        if Task.isCancelled { return }
+                        _ = CoverImageManager.shared.loadDiskImage(malID: item.malID, existingFilename: item.filename)
+                    }
+                }
             }
         }
     }

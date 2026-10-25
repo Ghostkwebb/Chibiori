@@ -16,8 +16,12 @@ public struct LibraryContainerView: View {
         self._allAnime = Query(sort: \TrackedAnime.dateAdded, order: .reverse)
     }
 
-    private var filteredAnime: [TrackedAnime] {
-        computeFilteredAnime()
+    @State private var cachedFilteredAnime: [TrackedAnime] = []
+    @State private var hasInitialFilterRun: Bool = false
+
+    private func updateFilteredAnime() {
+        self.cachedFilteredAnime = computeFilteredAnime()
+        self.hasInitialFilterRun = true
     }
 
     private func computeFilteredAnime() -> [TrackedAnime] {
@@ -74,7 +78,7 @@ public struct LibraryContainerView: View {
 
     public var body: some View {
         @Bindable var state = navState
-        let currentFilteredAnime = computeFilteredAnime()
+        let currentFilteredAnime = hasInitialFilterRun ? cachedFilteredAnime : computeFilteredAnime()
 
         ZStack {
             AmbientGlowBackground()
@@ -128,7 +132,7 @@ public struct LibraryContainerView: View {
             await hydrationService.hydrateMissingMetadata(context: modelContext)
             await hydrationService.syncActiveAiringStatuses(context: modelContext)
         }
-        .navigationSubtitle("\(currentFilteredAnime.count) \(currentFilteredAnime.count == 1 ? "anime" : "animes")")
+        .navigationSubtitle("\(currentFilteredAnime.count) \(currentFilteredAnime.count == 1 ? "title" : "titles")")
         .searchable(
             text: $state.librarySearchQuery,
             placement: .toolbar,
@@ -144,6 +148,11 @@ public struct LibraryContainerView: View {
             let items = allAnime.map { ($0.malID, $0.coverImageRemoteURL, $0.coverImageFilename) }
             CoverImageManager.shared.prefetchCovers(items: items)
         }
+        .onChange(of: allAnime, initial: true) { _, _ in updateFilteredAnime() }
+        .onChange(of: navState.selectedAiringStatusFilter) { _, _ in updateFilteredAnime() }
+        .onChange(of: navState.librarySearchQuery) { _, _ in updateFilteredAnime() }
+        .onChange(of: navState.selectedSortOption) { _, _ in updateFilteredAnime() }
+        .onChange(of: navState.titleLanguagePreference) { _, _ in updateFilteredAnime() }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 // Airing Status Filter Pill / Menu
@@ -159,7 +168,7 @@ public struct LibraryContainerView: View {
                 } label: {
                     Label(
                         state.selectedAiringStatusFilter?.displayName ?? "Airing Status",
-                        systemImage: "line.3.horizontal.decrease.circle"
+                        systemImage: state.selectedAiringStatusFilter != nil ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
                     )
                 }
                 .help("Filter by Airing Status")

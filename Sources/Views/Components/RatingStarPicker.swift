@@ -9,44 +9,39 @@ public struct RatingStarPicker: View {
     }
 
     public var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             ForEach(1...10, id: \.self) { star in
                 Image(systemName: starIconName(for: star))
-                    .font(.system(size: 14))
+                    .font(.system(size: 13.5))
                     .foregroundStyle(starColor(for: star))
                     .contentShape(Rectangle())
                     .onHover { isHovered in
                         hoveredRating = isHovered ? star : nil
                     }
                     .onTapGesture {
-                        if rating == star {
-                            rating = nil // toggle off
-                        } else {
-                            rating = star
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            if rating == star {
+                                rating = nil // toggle off
+                            } else {
+                                rating = star
+                            }
                         }
                     }
             }
 
-            if let current = rating {
-                Text("\(current)/10")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 6)
-
+            if rating != nil {
                 Button {
-                    rating = nil
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        rating = nil
+                    }
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 12))
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
+                .padding(.leading, 6)
                 .help("Clear rating")
-            } else {
-                Text("Unrated")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-                    .padding(.leading, 4)
             }
         }
     }

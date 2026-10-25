@@ -213,20 +213,29 @@ public struct FranchiseHubSheetView: View {
         }
     }
 
-    private func findMatchingTracked(for item: RelatedAnimeItem) -> TrackedAnime? {
-        allTrackedAnime.first { tracked in
-            (item.malID > 0 && tracked.malID == item.malID) ||
-            tracked.title.localizedCaseInsensitiveCompare(item.title) == .orderedSame ||
-            (tracked.englishTitle != nil && item.englishTitle != nil && tracked.englishTitle!.localizedCaseInsensitiveCompare(item.englishTitle!) == .orderedSame)
+    private func findMatchingTracked(for item: RelatedAnimeItem, map: [Int: TrackedAnime]) -> TrackedAnime? {
+        if item.malID > 0, let match = map[item.malID] {
+            return match
+        }
+        let itemTitle = item.title.lowercased()
+        let itemEn = item.englishTitle?.lowercased()
+        return allTrackedAnime.first { tracked in
+            tracked.title.lowercased() == itemTitle ||
+            (itemEn != nil && tracked.englishTitle?.lowercased() == itemEn)
         }
     }
 
     // MARK: - List View
     private var itemsListView: some View {
-        ScrollView {
+        let trackedMap: [Int: TrackedAnime] = Dictionary(
+            allTrackedAnime.map { ($0.malID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        return ScrollView {
             LazyVStack(spacing: 6) {
                 ForEach(filteredItems) { item in
-                    let match = findMatchingTracked(for: item)
+                    let match = findMatchingTracked(for: item, map: trackedMap)
                     FranchiseItemRow(
                         item: item,
                         isCurrent: (item.malID > 0 && item.malID == currentMalID) || item.title.localizedCaseInsensitiveCompare(currentTitle) == .orderedSame,
@@ -235,7 +244,7 @@ public struct FranchiseHubSheetView: View {
                         onInspect: {
                             dismiss()
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                                if let match = findMatchingTracked(for: item) {
+                                if let match {
                                     navState.navigateTo(tracked: match)
                                 } else {
                                     navState.navigateTo(dto: item.asJikanDTO)
@@ -426,15 +435,12 @@ struct FranchiseItemRow: View {
         let strokeWidth: CGFloat = isCurrent ? 1.5 : 0.8
 
         return Group {
-            if let cover = item.coverImageURL, let url = URL(string: cover) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable().aspectRatio(contentMode: .fill)
-                    default:
-                        Color.white.opacity(0.06)
-                    }
-                }
+            if let cover = item.coverImageURL, !cover.isEmpty {
+                CachedCoverImage(
+                    malID: item.malID,
+                    remoteURLString: cover,
+                    cornerRadius: 6
+                )
                 .frame(width: 40, height: 56)
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 .overlay(

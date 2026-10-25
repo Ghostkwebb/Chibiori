@@ -11,16 +11,10 @@ public struct SidebarView: View {
         self._selection = selection
     }
 
-    private var statusCounts: [WatchStatus: Int] {
-        var counts: [WatchStatus: Int] = [:]
-        for anime in allAnime {
-            counts[anime.watchStatus, default: 0] += 1
-        }
-        return counts
-    }
+    @State private var cachedCounts: [WatchStatus: Int] = [:]
 
     public var body: some View {
-        let counts = statusCounts
+        let counts = cachedCounts
 
         VStack(alignment: .leading, spacing: 0) {
                 ScrollView(.vertical, showsIndicators: false) {
@@ -137,7 +131,7 @@ public struct SidebarView: View {
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .glassPill(tint: .cyan, isSelected: false)
+                        .glassPill(tint: .secondary, isSelected: false)
                     }
                     .buttonStyle(.plain)
                 }
@@ -145,6 +139,14 @@ public struct SidebarView: View {
                 .padding(.vertical, 8)
             }
             .background(.ultraThinMaterial)
+            .onChange(of: allAnime, initial: true) { _, newItems in
+                var counts: [WatchStatus: Int] = [:]
+                counts.reserveCapacity(WatchStatus.allCases.count)
+                for anime in newItems {
+                    counts[anime.watchStatus, default: 0] += 1
+                }
+                self.cachedCounts = counts
+            }
     }
 
     private func sectionHeader(_ title: String) -> some View {
@@ -193,17 +195,13 @@ private struct SidebarItemButton: View {
 
                 if let count = badgeCount {
                     Text("\(count)")
-                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                        .foregroundStyle(isSelected ? Color.white : accentColor)
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(isSelected ? Color.white : Color.secondary)
                         .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                        .padding(.vertical, 1.5)
                         .background(
                             Capsule()
-                                .fill(isSelected ? accentColor.opacity(0.5) : accentColor.opacity(0.14))
-                        )
-                        .overlay(
-                            Capsule()
-                                .strokeBorder(accentColor.opacity(isSelected ? 0.6 : 0.25), lineWidth: 0.8)
+                                .fill(isSelected ? Color.white.opacity(0.22) : Color.white.opacity(0.07))
                         )
                 }
             }

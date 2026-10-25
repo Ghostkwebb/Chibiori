@@ -26,10 +26,11 @@ public final class MetadataHydrationService {
         let fetchDescriptor = FetchDescriptor<TrackedAnime>()
         guard let allAnimes = try? context.fetch(fetchDescriptor) else { return }
 
+        let verifiedEnglishIDs = await DubbedLanguageService.shared.verifiedEnglishDubIDs()
         var missingAnimes: [TrackedAnime] = []
         for anime in allAnimes {
             let hasEnglish = anime.dubbedLanguages.contains { $0.caseInsensitiveCompare("English") == .orderedSame }
-            let isVerifiedEnglish = await DubbedLanguageService.shared.hasVerifiedEnglishDub(malId: anime.malID)
+            let isVerifiedEnglish = verifiedEnglishIDs.contains(anime.malID)
             let needsEnglishDub = !hasEnglish && isVerifiedEnglish
 
             if anime.coverImageRemoteURL.isEmpty ||
@@ -105,7 +106,7 @@ public final class MetadataHydrationService {
                 }
 
                 let hasEnglish = anime.dubbedLanguages.contains { $0.caseInsensitiveCompare("English") == .orderedSame }
-                let isVerifiedEnglish = await DubbedLanguageService.shared.hasVerifiedEnglishDub(malId: anime.malID)
+                let isVerifiedEnglish = verifiedEnglishIDs.contains(anime.malID)
                 let needsEnglish = !hasEnglish && isVerifiedEnglish
                 if anime.dubbedLanguages.isEmpty || needsEnglish {
                     let dubs = await DubbedLanguageService.shared.fetchDubbedLanguages(malId: anime.malID)

@@ -39,17 +39,19 @@ public struct JikanAnimeDetailInspectorView: View {
                     .padding(14)
                     .glassCard(cornerRadius: 14)
 
-                // Synopsis Card
-                if let synopsis = dto.synopsis, !synopsis.isEmpty {
-                    synopsisSection(synopsis: synopsis)
-                        .padding(14)
-                        .glassCard(cornerRadius: 14)
-                }
+                // Synopsis & Details Unified Card
+                VStack(alignment: .leading, spacing: 12) {
+                    if let synopsis = dto.synopsis, !synopsis.isEmpty {
+                        synopsisSection(synopsis: synopsis)
 
-                // Details & Broadcast Info
-                metadataSection
-                    .padding(14)
-                    .glassCard(cornerRadius: 14)
+                        Divider()
+                            .opacity(0.25)
+                    }
+
+                    metadataSection
+                }
+                .padding(14)
+                .glassCard(cornerRadius: 16)
             }
             .padding(12)
         }

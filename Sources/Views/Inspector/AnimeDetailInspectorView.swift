@@ -47,38 +47,44 @@ public struct AnimeDetailInspectorView: View {
                         currentEnglishTitle: anime.englishTitle
                     )
                     .padding(14)
-                    .glassCard(cornerRadius: 14)
+                    .glassCard(cornerRadius: 16)
                 }
 
-                // Watch Status & Queue Actions
-                statusAndQueueSection
-                    .padding(14)
-                    .glassCard(cornerRadius: 14)
+                // Unified Tracking Card (Status + Progress)
+                VStack(alignment: .leading, spacing: 12) {
+                    statusAndQueueSection
 
-                // Episode Progress
-                progressSection
-                    .padding(14)
-                    .glassCard(cornerRadius: 14)
+                    Divider()
+                        .opacity(0.25)
 
-                // Rating Section
-                ratingSection
-                    .padding(14)
-                    .glassCard(cornerRadius: 16)
+                    progressSection
+                }
+                .padding(14)
+                .glassCard(cornerRadius: 16)
 
-                // Personal Notes Section
-                notesSection
-                    .padding(14)
-                    .glassCard(cornerRadius: 16)
+                // Unified Rating & Personal Notes Card
+                VStack(alignment: .leading, spacing: 12) {
+                    ratingSection
 
-                // Synopsis Section
-                synopsisSection
-                    .padding(14)
-                    .glassCard(cornerRadius: 16)
+                    Divider()
+                        .opacity(0.25)
 
-                // Metadata Details Section
-                metadataSection
-                    .padding(14)
-                    .glassCard(cornerRadius: 16)
+                    notesSection
+                }
+                .padding(14)
+                .glassCard(cornerRadius: 16)
+
+                // Unified Synopsis & Metadata Details Card
+                VStack(alignment: .leading, spacing: 12) {
+                    synopsisSection
+
+                    Divider()
+                        .opacity(0.25)
+
+                    metadataSection
+                }
+                .padding(14)
+                .glassCard(cornerRadius: 16)
 
                 // Delete Action
                 deleteSection
@@ -408,16 +414,28 @@ public struct AnimeDetailInspectorView: View {
                 Spacer()
             }
 
-            TextEditor(text: $anime.personalNotes)
-                .font(.system(size: 12))
-                .frame(minHeight: 55, maxHeight: 110)
-                .padding(4)
-                .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8)
-                )
+            ZStack(alignment: .topLeading) {
+                if anime.personalNotes.isEmpty {
+                    Text("Add thoughts, impressions, or personal tags...")
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(Color.secondary.opacity(0.5))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 8)
+                        .allowsHitTesting(false)
+                }
+
+                TextEditor(text: $anime.personalNotes)
+                    .font(.system(size: 11.5))
+                    .frame(minHeight: 55, maxHeight: 110)
+                    .padding(4)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.white.opacity(0.04))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8)
+                    )
+            }
         }
     }
 

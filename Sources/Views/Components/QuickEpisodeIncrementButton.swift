@@ -37,17 +37,24 @@ public struct QuickEpisodeIncrementButton: View {
                 Text("1")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4.5)
             .background(
-                isMaxReached ? Color.secondary.opacity(0.15) :
-                isHovered ? Color.accentColor.opacity(0.9) : Color.accentColor.opacity(0.2)
+                isMaxReached ? Color.white.opacity(0.04) :
+                isHovered ? Color.accentColor.opacity(0.25) : Color.white.opacity(0.06)
             )
             .foregroundStyle(
-                isMaxReached ? Color.secondary :
-                isHovered ? Color.white : Color.accentColor
+                isMaxReached ? Color.secondary.opacity(0.5) :
+                isHovered ? Color.white : Color.primary.opacity(0.85)
             )
             .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .strokeBorder(
+                        isHovered ? Color.accentColor.opacity(0.5) : Color.white.opacity(0.12),
+                        lineWidth: 0.8
+                    )
+            )
             .scaleEffect(isPressed ? 0.92 : 1.0)
         }
         .buttonStyle(.plain)

@@ -13,17 +13,11 @@ public struct SequelAlertsView: View {
     public init() {}
 
     @FocusState private var isListFocused: Bool
+    @State private var trackedMap: [Int: TrackedAnime] = [:]
+    @State private var existingIDs: Set<Int> = []
 
     private var completedAnime: [TrackedAnime] {
         trackedAnimes.filter { $0.watchStatus == .completed }
-    }
-
-    private var existingIDs: Set<Int> {
-        Set(trackedAnimes.map { $0.malID })
-    }
-
-    private var trackedMap: [Int: TrackedAnime] {
-        Dictionary(uniqueKeysWithValues: trackedAnimes.map { ($0.malID, $0) })
     }
 
     private var displayedAlerts: [SequelAlertItem] {
@@ -135,6 +129,18 @@ public struct SequelAlertsView: View {
         }
         .navigationTitle("Sequel & Season 2 Alerts")
         .navigationSubtitle("\(displayedAlerts.count) Upcoming Announcements")
+        .onChange(of: trackedAnimes, initial: true) { _, newItems in
+            var map: [Int: TrackedAnime] = [:]
+            var ids = Set<Int>()
+            map.reserveCapacity(newItems.count)
+            ids.reserveCapacity(newItems.count)
+            for item in newItems {
+                map[item.malID] = item
+                ids.insert(item.malID)
+            }
+            self.trackedMap = map
+            self.existingIDs = ids
+        }
         .onAppear {
             if service.alerts.isEmpty && !completedAnime.isEmpty {
                 scanNow()
