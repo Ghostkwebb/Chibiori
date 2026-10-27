@@ -278,6 +278,8 @@ public final class TrackedAnime {
         case .planToWatch, .onHold, .dropped:
             break
         }
+        try? modelContext?.save()
+        Self.notifyLibraryChanged()
     }
 
     /// Re-queues the anime by refreshing `dateAdded` to Date.now while preserving historical dates
@@ -285,6 +287,8 @@ public final class TrackedAnime {
         self.dateAdded = Date()
         self.statusLastUpdatedAt = Date()
         self.watchStatusRaw = WatchStatus.planToWatch.rawValue
+        try? modelContext?.save()
+        Self.notifyLibraryChanged()
     }
 
     /// Increments episode progress with auto-completion trigger if reaching total episodes
@@ -297,12 +301,18 @@ public final class TrackedAnime {
                 setWatchStatus(.completed)
             } else if watchStatus != .watching && watchStatus != .completed {
                 setWatchStatus(.watching)
+            } else {
+                try? modelContext?.save()
+                Self.notifyLibraryChanged()
             }
         } else {
             currentEpisodeProgress += 1
             statusLastUpdatedAt = Date()
             if watchStatus != .watching && watchStatus != .completed {
                 setWatchStatus(.watching)
+            } else {
+                try? modelContext?.save()
+                Self.notifyLibraryChanged()
             }
         }
     }
@@ -312,7 +322,19 @@ public final class TrackedAnime {
         guard currentEpisodeProgress > 0 else { return }
         currentEpisodeProgress -= 1
         statusLastUpdatedAt = Date()
+        try? modelContext?.save()
+        Self.notifyLibraryChanged()
     }
+
+    public static func notifyLibraryChanged() {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .libraryDidChange, object: nil)
+        }
+    }
+}
+
+extension Notification.Name {
+    public static let libraryDidChange = Notification.Name("ChibioriLibraryDidChangeNotification")
 }
 
 public enum AnimeDateFormatter {

@@ -16,12 +16,11 @@ public struct LibraryContainerView: View {
         self._allAnime = Query(sort: \TrackedAnime.dateAdded, order: .reverse)
     }
 
-    @State private var cachedFilteredAnime: [TrackedAnime] = []
-    @State private var hasInitialFilterRun: Bool = false
+    @State private var libraryUpdateID = UUID()
 
-    private func updateFilteredAnime() {
-        self.cachedFilteredAnime = computeFilteredAnime()
-        self.hasInitialFilterRun = true
+    private var filteredAnime: [TrackedAnime] {
+        _ = libraryUpdateID
+        return computeFilteredAnime()
     }
 
     private func computeFilteredAnime() -> [TrackedAnime] {
@@ -78,7 +77,7 @@ public struct LibraryContainerView: View {
 
     public var body: some View {
         @Bindable var state = navState
-        let currentFilteredAnime = hasInitialFilterRun ? cachedFilteredAnime : computeFilteredAnime()
+        let currentFilteredAnime = filteredAnime
 
         ZStack {
             AmbientGlowBackground()
@@ -142,12 +141,11 @@ public struct LibraryContainerView: View {
             let items = currentFilteredAnime.map { ($0.malID, $0.coverImageRemoteURL, $0.coverImageFilename) }
             CoverImageManager.shared.prefetchCovers(items: items)
         }
-        .onChange(of: watchStatusFilter) { _, _ in updateFilteredAnime() }
-        .onChange(of: allAnime, initial: true) { _, _ in updateFilteredAnime() }
-        .onChange(of: navState.selectedAiringStatusFilter) { _, _ in updateFilteredAnime() }
-        .onChange(of: navState.librarySearchQuery) { _, _ in updateFilteredAnime() }
-        .onChange(of: navState.selectedSortOption) { _, _ in updateFilteredAnime() }
-        .onChange(of: navState.titleLanguagePreference) { _, _ in updateFilteredAnime() }
+        .onReceive(NotificationCenter.default.publisher(for: .libraryDidChange)) { _ in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                libraryUpdateID = UUID()
+            }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 // Airing Status Filter Pill / Menu

@@ -401,6 +401,10 @@ public struct AnimeDetailInspectorView: View {
             }
 
             RatingStarPicker(rating: $anime.userRating)
+                .onChange(of: anime.userRating) { _, _ in
+                    try? anime.modelContext?.save()
+                    TrackedAnime.notifyLibraryChanged()
+                }
         }
     }
 

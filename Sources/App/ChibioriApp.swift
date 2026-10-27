@@ -206,12 +206,14 @@ struct MainContentView: View {
                         modelContext.delete(anime)
                         try? modelContext.save()
                         state.selectedAnimeID = nil
+                        TrackedAnime.notifyLibraryChanged()
                     }
                     .id(anime.persistentModelID)
                 } else if let dto = state.selectedJikanDTO {
                     JikanAnimeDetailInspectorView(dto: dto) { newAnime in
                         withAnimation(.spring(response: 0.3)) {
                             state.selectTracked(newAnime.persistentModelID)
+                            TrackedAnime.notifyLibraryChanged()
                         }
                     }
                     .id(dto.malId)

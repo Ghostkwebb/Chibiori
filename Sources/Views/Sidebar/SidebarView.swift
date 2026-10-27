@@ -11,10 +11,20 @@ public struct SidebarView: View {
         self._selection = selection
     }
 
-    @State private var cachedCounts: [WatchStatus: Int] = [:]
+    @State private var sidebarUpdateID = UUID()
+
+    private var statusCounts: [WatchStatus: Int] {
+        _ = sidebarUpdateID
+        var counts: [WatchStatus: Int] = [:]
+        counts.reserveCapacity(WatchStatus.allCases.count)
+        for anime in allAnime {
+            counts[anime.watchStatus, default: 0] += 1
+        }
+        return counts
+    }
 
     public var body: some View {
-        let counts = cachedCounts
+        let counts = statusCounts
 
         VStack(alignment: .leading, spacing: 0) {
                 ScrollView(.vertical, showsIndicators: false) {
@@ -139,13 +149,10 @@ public struct SidebarView: View {
                 .padding(.vertical, 8)
             }
             .background(.ultraThinMaterial)
-            .onChange(of: allAnime, initial: true) { _, newItems in
-                var counts: [WatchStatus: Int] = [:]
-                counts.reserveCapacity(WatchStatus.allCases.count)
-                for anime in newItems {
-                    counts[anime.watchStatus, default: 0] += 1
+            .onReceive(NotificationCenter.default.publisher(for: .libraryDidChange)) { _ in
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                    sidebarUpdateID = UUID()
                 }
-                self.cachedCounts = counts
             }
     }
 
