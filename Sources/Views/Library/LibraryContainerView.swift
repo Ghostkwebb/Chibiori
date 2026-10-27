@@ -139,15 +139,10 @@ public struct LibraryContainerView: View {
             prompt: "Search local library..."
         )
         .onAppear {
-            let missing = allAnime.filter { $0.coverImageRemoteURL.isEmpty }
-            if !missing.isEmpty && !hydrationService.isHydrating {
-                Task {
-                    await hydrationService.hydrateMissingMetadata(context: modelContext)
-                }
-            }
-            let items = allAnime.map { ($0.malID, $0.coverImageRemoteURL, $0.coverImageFilename) }
+            let items = currentFilteredAnime.map { ($0.malID, $0.coverImageRemoteURL, $0.coverImageFilename) }
             CoverImageManager.shared.prefetchCovers(items: items)
         }
+        .onChange(of: watchStatusFilter) { _, _ in updateFilteredAnime() }
         .onChange(of: allAnime, initial: true) { _, _ in updateFilteredAnime() }
         .onChange(of: navState.selectedAiringStatusFilter) { _, _ in updateFilteredAnime() }
         .onChange(of: navState.librarySearchQuery) { _, _ in updateFilteredAnime() }

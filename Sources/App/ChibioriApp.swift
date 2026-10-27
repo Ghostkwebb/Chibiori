@@ -16,9 +16,6 @@ struct ChibioriApp: App {
     let container: ModelContainer
 
     init() {
-        // Prevent AppKit from throwing NSGenericException during rapid multi-column window resize passes
-        UserDefaults.standard.set(false, forKey: "NSWindowAssertWhenDisplayCycleLimitReached")
-
         if CommandLine.arguments.contains("--smoke-test") || CommandLine.arguments.contains("-t") {
             Task { @MainActor in
                 let success = await SmokeTestRunner.runAllTests()
@@ -58,7 +55,7 @@ struct ChibioriApp: App {
         }
         .windowToolbarStyle(.unified)
         .defaultSize(width: 1200, height: 800)
-        .windowResizability(.contentMinSize)
+        .windowResizability(.contentSize)
         .commands {
             SidebarCommands()
 
@@ -190,7 +187,7 @@ struct MainContentView: View {
                 switch state.selectedSidebar ?? .allAnime {
                 case .allAnime, .watchStatus(_):
                     LibraryContainerView(watchStatusFilter: state.selectedSidebar?.filterStatus)
-                        .id("library_container_view")
+                        .id("library_\(state.selectedSidebar?.filterStatus?.rawValue ?? "all")")
                 case .search:
                     DiscoverView()
                 case .weeklyCalendar:

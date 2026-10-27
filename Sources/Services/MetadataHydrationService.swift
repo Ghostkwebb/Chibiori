@@ -26,25 +26,12 @@ public final class MetadataHydrationService {
         let fetchDescriptor = FetchDescriptor<TrackedAnime>()
         guard let allAnimes = try? context.fetch(fetchDescriptor) else { return }
 
-        let verifiedEnglishIDs = await DubbedLanguageService.shared.verifiedEnglishDubIDs()
         var missingAnimes: [TrackedAnime] = []
         for anime in allAnimes {
-            let hasEnglish = anime.dubbedLanguages.contains { $0.caseInsensitiveCompare("English") == .orderedSame }
-            let isVerifiedEnglish = verifiedEnglishIDs.contains(anime.malID)
-            let needsEnglishDub = !hasEnglish && isVerifiedEnglish
-
             if anime.coverImageRemoteURL.isEmpty ||
                anime.synopsis.isEmpty ||
                anime.airingStatusRaw.isEmpty ||
-               anime.seasonYear == nil ||
-               anime.airingStatus == nil ||
-               anime.totalEpisodes == nil ||
-               anime.englishTitle == nil ||
-               anime.japaneseTitle == nil ||
-               (anime.airingStatus == .finishedAiring && anime.airingEndDate == nil) ||
-               (anime.englishTitle != nil && anime.title == anime.englishTitle) ||
-               anime.dubbedLanguages.isEmpty ||
-               needsEnglishDub {
+               (anime.seasonYear == nil && anime.airingEndDate == nil) {
                 missingAnimes.append(anime)
             }
         }
@@ -105,21 +92,10 @@ public final class MetadataHydrationService {
                     }
                 }
 
-                let hasEnglish = anime.dubbedLanguages.contains { $0.caseInsensitiveCompare("English") == .orderedSame }
-                let isVerifiedEnglish = verifiedEnglishIDs.contains(anime.malID)
-                let needsEnglish = !hasEnglish && isVerifiedEnglish
-                if anime.dubbedLanguages.isEmpty || needsEnglish {
-                    let dubs = await DubbedLanguageService.shared.fetchDubbedLanguages(malId: anime.malID)
+                if anime.dubbedLanguages.isEmpty {
+                    let dubs = await DubbedLanguageService.shared.offlineDubbedLanguages(malId: anime.malID)
                     if !dubs.isEmpty {
-                        let existingLower = Set(anime.dubbedLanguages.map { $0.lowercased() })
-                        let newNames = dubs.map { $0.name }
-                        var merged = anime.dubbedLanguages
-                        for name in newNames where !existingLower.contains(name.lowercased()) {
-                            merged.append(name)
-                        }
-                        if merged != anime.dubbedLanguages {
-                            anime.dubbedLanguages = merged
-                        }
+                        anime.dubbedLanguages = dubs.map { $0.name }
                     }
                 }
             }
@@ -159,6 +135,15 @@ public final class MetadataHydrationService {
     /// Automatically checks all currently airing, upcoming, or uncompleted-count anime in your library to sync status changes (e.g. Airing -> Finished) and episode counts
     public func syncActiveAiringStatuses(context: ModelContext, forceAll: Bool = false) async {
         guard !isHydrating else { return }
+
+        let lastSyncKey = "chibiori_last_airing_sync_timestamp"
+        if !forceAll {
+            let lastSync = UserDefaults.standard.double(forKey: lastSyncKey)
+            let now = Date().timeIntervalSince1970
+            if now - lastSync < 43200 { // 12-hour throttle
+                return
+            }
+        }
 
         let fetchDescriptor = FetchDescriptor<TrackedAnime>()
         guard let allAnimes = try? context.fetch(fetchDescriptor) else { return }
@@ -240,6 +225,7 @@ public final class MetadataHydrationService {
             }
         }
 
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastSyncKey)
         isHydrating = false
         statusMessage = nil
     }

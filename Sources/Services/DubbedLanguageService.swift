@@ -45,6 +45,26 @@ public actor DubbedLanguageService {
         regionalDubIndex["english"] ?? []
     }
 
+    /// Fast offline resolution using local MyDubList datasets without network queries
+    public func offlineDubbedLanguages(malId: Int) -> [DubbedLanguage] {
+        var discoveredLanguages = Set<String>()
+        for (langKey, idSet) in regionalDubIndex {
+            if idSet.contains(malId) {
+                discoveredLanguages.insert(langKey.capitalized)
+            }
+        }
+        var resolvedList: [DubbedLanguage] = [
+            DubbedLanguage(code: "JP", name: "Japanese", nativeName: "日本語", isNativeAudio: true, flag: "🇯🇵")
+        ]
+        for raw in discoveredLanguages {
+            let lang = DubbedLanguage.resolve(from: raw)
+            if lang.code != "JP" && !resolvedList.contains(where: { $0.code == lang.code }) {
+                resolvedList.append(lang)
+            }
+        }
+        return resolvedList
+    }
+
     /// Fetches all dubbed and original audio languages for a given MyAnimeList ID
     public func fetchDubbedLanguages(malId: Int, forceRefresh: Bool = false) async -> [DubbedLanguage] {
         if !forceRefresh, let cached = memoryCache[malId] {
