@@ -15,6 +15,7 @@ public struct SidebarView: View {
 
     private var statusCounts: [WatchStatus: Int] {
         _ = sidebarUpdateID
+        _ = navState.libraryUpdateTrigger
         var counts: [WatchStatus: Int] = [:]
         counts.reserveCapacity(WatchStatus.allCases.count)
         for anime in allAnime {

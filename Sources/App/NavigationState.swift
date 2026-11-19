@@ -165,6 +165,11 @@ public final class NavigationState {
         }
     }
     public var showGridSizePopover: Bool = false
+    public var libraryUpdateTrigger: Int = 0
+
+    public func bumpLibraryVersion() {
+        libraryUpdateTrigger &+= 1
+    }
 
 
     public init() {

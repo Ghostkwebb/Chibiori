@@ -271,6 +271,7 @@ public struct AnimeDetailInspectorView: View {
                 StatusPickerMenu(currentStatus: anime.watchStatus) { newStatus in
                     withAnimation(.spring(response: 0.3)) {
                         anime.setWatchStatus(newStatus)
+                        navState.bumpLibraryVersion()
                     }
                 }
 
@@ -279,6 +280,7 @@ public struct AnimeDetailInspectorView: View {
                 Button {
                     withAnimation(.spring(response: 0.3)) {
                         anime.reQueue()
+                        navState.bumpLibraryVersion()
                     }
                 } label: {
                     HStack(spacing: 4) {
@@ -371,6 +373,7 @@ public struct AnimeDetailInspectorView: View {
                         withAnimation(.spring(response: 0.3)) {
                             anime.currentEpisodeProgress = total
                             anime.setWatchStatus(.completed)
+                            navState.bumpLibraryVersion()
                         }
                     }
                     .font(.system(size: 10, weight: .semibold))

@@ -159,6 +159,8 @@ public final class TrackedAnime {
         currentEpisodeProgress = 0
         dateAdded = Date()
         statusLastUpdatedAt = Date()
+        try? modelContext?.save()
+        Self.notifyLibraryChanged()
     }
 
     /// Resolves the displayed title based on user preference (English, Romaji, Native) with graceful fallbacks

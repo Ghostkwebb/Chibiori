@@ -3,8 +3,18 @@ import SwiftData
 import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    var modelContainer: ModelContainer?
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return true
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        try? modelContainer?.mainContext.save()
+    }
+
+    func applicationWillResignActive(_ notification: Notification) {
+        try? modelContainer?.mainContext.save()
     }
 }
 
@@ -39,7 +49,9 @@ struct ChibioriApp: App {
             // Local-only SQLite storage. iCloud sync is handled by CloudSyncService
             // which writes a JSON file directly to iCloud Drive — no developer account needed.
             let localConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false, cloudKitDatabase: .none)
-            container = try ModelContainer(for: schema, configurations: [localConfig])
+            let modelContainer = try ModelContainer(for: schema, configurations: [localConfig])
+            self.container = modelContainer
+            self.appDelegate.modelContainer = modelContainer
         } catch {
             fatalError("Failed to initialize SwiftData ModelContainer: \(error.localizedDescription)")
         }

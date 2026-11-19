@@ -20,6 +20,7 @@ public struct LibraryContainerView: View {
 
     private var filteredAnime: [TrackedAnime] {
         _ = libraryUpdateID
+        _ = navState.libraryUpdateTrigger
         return computeFilteredAnime()
     }
 
