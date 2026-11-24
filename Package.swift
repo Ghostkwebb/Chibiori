@@ -7,10 +7,19 @@ let package = Package(
         .macOS(.v14)
     ],
     targets: [
+        .target(
+            name: "ChibioriCore",
+            path: "Sources/ChibioriCore"
+        ),
         .executableTarget(
             name: "Chibiori",
-            path: "Sources",
-            exclude: ["Resources"]
+            dependencies: ["ChibioriCore"],
+            path: "Sources/Chibiori"
+        ),
+        .testTarget(
+            name: "ChibioriTests",
+            dependencies: ["ChibioriCore"],
+            path: "Tests/ChibioriTests"
         )
     ]
 )

@@ -4,11 +4,16 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 cd "$DIR"
 
-echo "🔨 Building Chibiori Release Binary with macOS 27 Liquid Glass support..."
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+if [ -z "${DEVELOPER_DIR:-}" ] && [ -d "/Applications/Xcode.app/Contents/Developer" ]; then
+    export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+fi
+
 SDK_PATH=$(xcrun --show-sdk-path 2>/dev/null || echo "")
-if [ -n "$SDK_PATH" ]; then
-    swift build -c release -Xswiftc -target -Xswiftc arm64-apple-macosx27.0 -Xswiftc -sdk -Xswiftc "$SDK_PATH"
+SDK_VER=$(xcrun --show-sdk-version 2>/dev/null || echo "14.0")
+
+echo "🔨 Building Chibiori Release Binary (SDK ${SDK_VER})..."
+if [ -n "$SDK_PATH" ] && [ -n "$SDK_VER" ]; then
+    swift build -c release -Xswiftc -target -Xswiftc "arm64-apple-macosx${SDK_VER}" -Xswiftc -sdk -Xswiftc "$SDK_PATH"
 else
     swift build -c release
 fi
@@ -53,7 +58,7 @@ find "$DIR/.build" -name "*.bundle" 2>/dev/null | while read -r bundle; do
 done
 
 # Create Info.plist
-cat << 'EOF' > "$CONTENTS/Info.plist"
+cat << EOF > "$CONTENTS/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -75,17 +80,15 @@ cat << 'EOF' > "$CONTENTS/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.20</string>
+    <string>1.0.21</string>
     <key>CFBundleVersion</key>
-    <string>21</string>
+    <string>22</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>DTSDKName</key>
-    <string>macosx27.0</string>
+    <string>macosx${SDK_VER}</string>
     <key>DTPlatformVersion</key>
-    <string>27.0</string>
-    <key>DTXcode</key>
-    <string>2700</string>
+    <string>${SDK_VER}</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSSupportsAutomaticGraphicsSwitching</key>
@@ -109,4 +112,3 @@ fi
 
 echo "✅ Successfully built and packaged Chibiori.app at:"
 echo "   $APP_PATH"
-

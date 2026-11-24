@@ -11,6 +11,7 @@ DerivedData/
 *.dSYM.zip
 *.dSYM
 *.dmg
+rw.*.dmg
 *.zip
 
 # macOS System Files

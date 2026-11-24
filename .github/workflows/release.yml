@@ -22,6 +22,9 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
+      - name: Run Unit Tests
+        run: swift test
+
       - name: Build and Package Chibiori.app
         run: |
           chmod +x ./scripts/build_app.sh
@@ -38,7 +41,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.version_tag || github.ref_name }}
-          name: "Chibiori Release ${{ github.event.inputs.version_tag || github.ref_name }}"
+          name: "Chibiori ${{ github.event.inputs.version_tag || github.ref_name }}"
           generate_release_notes: false
           draft: false
           prerelease: false
