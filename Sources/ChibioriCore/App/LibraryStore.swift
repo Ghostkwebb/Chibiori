@@ -7,20 +7,97 @@ import Observation
 public final class LibraryStore {
     private let modelContext: ModelContext
     private let cloudSync: CloudSyncService
+    private let scoreService: MultiSiteScoreService
     private var notesSaveTask: Task<Void, Never>?
 
     public private(set) var allAnime: [TrackedAnime] = []
     public private(set) var animeByMalID: [Int: TrackedAnime] = [:]
     public private(set) var animeByID: [PersistentIdentifier: TrackedAnime] = [:]
+    public private(set) var siteScoresByMalID: [Int: AnimeSiteScores] = [:]
     public private(set) var statusCounts: [WatchStatus: Int] = [:]
     public private(set) var totalEpisodesWatched: Int = 0
     public private(set) var missingCoversCount: Int = 0
     public private(set) var revision: Int = 0
 
-    public init(modelContext: ModelContext, cloudSync: CloudSyncService? = nil) {
+    public init(
+        modelContext: ModelContext,
+        cloudSync: CloudSyncService? = nil,
+        scoreService: MultiSiteScoreService? = nil
+    ) {
         self.modelContext = modelContext
         self.cloudSync = cloudSync ?? .shared
+        self.scoreService = scoreService ?? .shared
         reload(notifyCloudSync: false)
+        Task { @MainActor [weak self] in
+            await self?.loadCachedSiteScores()
+        }
+    }
+
+    public func loadCachedSiteScores() async {
+        let cached = await scoreService.allCachedScores()
+        guard !cached.isEmpty else { return }
+        self.siteScoresByMalID = cached
+        self.revision &+= 1
+    }
+
+    /// Stores multi-website score cache for an anime and promotes verified MAL scores to `TrackedAnime.malScore`.
+    public func applySiteScores(_ scores: AnimeSiteScores, for anime: TrackedAnime? = nil) {
+        let previous = siteScoresByMalID[scores.malID]
+        siteScoresByMalID[scores.malID] = scores
+
+        let target = anime ?? animeByMalID[scores.malID]
+        if let target, let verifiedMAL = scores.malScore, verifiedMAL > 0, target.malScore != verifiedMAL {
+            target.malScore = verifiedMAL
+            commitAndNotify()
+        } else if previous != scores {
+            revision &+= 1
+        }
+    }
+
+    /// Returns the preferred score badge ordered by user choice (`Auto`, `MAL`, `AniList`, `Shikimori`, `Kitsu`).
+    public func primaryScoreDisplay(
+        for anime: TrackedAnime,
+        preference: ScoreDisplayPreference = .auto
+    ) -> (source: ScoreSource, score: Double)? {
+        if let badge = siteScoresByMalID[anime.malID]?.badge(for: preference) {
+            return badge
+        }
+        if let fallback = anime.malScore, fallback > 0 {
+            return (.aniList, fallback)
+        }
+        return nil
+    }
+
+    /// Background batch-prefetch of missing scores, streaming chunks into the UI as they arrive.
+    public func prefetchScores(for malIDs: [Int], preference: ScoreDisplayPreference) async {
+        if siteScoresByMalID.isEmpty {
+            await loadCachedSiteScores()
+        }
+        _ = await scoreService.prefetchBatchScores(for: malIDs, preference: preference) { batch in
+            await MainActor.run {
+                self.mergePrefetchedBatch(batch)
+            }
+        }
+    }
+
+    private func mergePrefetchedBatch(_ batch: [Int: AnimeSiteScores]) {
+        guard !batch.isEmpty else { return }
+        var mutatedModels = false
+        for (malID, scores) in batch {
+            siteScoresByMalID[malID] = scores
+            if let target = animeByMalID[malID],
+               let malScore = scores.malScore, malScore > 0,
+               target.malScore != malScore {
+                target.malScore = malScore
+                mutatedModels = true
+            }
+        }
+
+        if mutatedModels {
+            commitAndNotify()
+        } else {
+            revision &+= 1
+        }
     }
 
     /// Re-fetches the library from SwiftData and rebuilds O(1) lookup indexes and sidebar counts.
@@ -105,7 +182,8 @@ public final class LibraryStore {
         airing: AiringStatus?,
         query: String,
         sortOption: LibrarySortOption,
-        titlePreference: TitleLanguagePreference
+        titlePreference: TitleLanguagePreference,
+        scorePreference: ScoreDisplayPreference = .auto
     ) -> [TrackedAnime] {
         _ = revision
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -144,7 +222,14 @@ public final class LibraryStore {
                     .localizedCaseInsensitiveCompare($1.displayTitle(for: titlePreference)) == .orderedAscending
             }
         case .scoreDesc:
-            list.sort { ($0.malScore ?? 0) > ($1.malScore ?? 0) }
+            list.sort {
+                let s0 = primaryScoreDisplay(for: $0, preference: scorePreference)?.score ?? 0
+                let s1 = primaryScoreDisplay(for: $1, preference: scorePreference)?.score ?? 0
+                if s0 != s1 {
+                    return s0 > s1
+                }
+                return $0.dateAdded > $1.dateAdded
+            }
         case .progressDesc:
             list.sort { $0.currentEpisodeProgress > $1.currentEpisodeProgress }
         case .lastUpdatedDesc:

@@ -17,6 +17,7 @@ public struct AnimeDetailInspectorView: View {
     @State private var relatedAnime: [RelatedAnimeItem] = []
     @State private var showDubEditor = false
     @State private var customLanguageInput = ""
+    @State private var isLoadingScores = false
 
     private static let dateFormatter: DateFormatter = {
         let df = DateFormatter()
@@ -133,17 +134,40 @@ public struct AnimeDetailInspectorView: View {
             Text("Are you sure you want to remove \"\(anime.title)\" from your local library? This action cannot be undone.")
         }
         .task(id: anime.malID) {
-            var rels = await AnimeRelationsService.shared.fetchRelations(for: anime.malID, title: anime.title)
+            let malID = anime.malID
+            let title = anime.title
+            let fallbackScore = anime.malScore
+
+            async let relsTask = AnimeRelationsService.shared.fetchRelations(for: malID, title: title)
+            async let dubsTask = DubbedLanguageService.shared.fetchDubbedLanguages(malId: malID)
+
+            isLoadingScores = true
+            async let scoresTask = MultiSiteScoreService.shared.fetchAllScores(
+                for: malID,
+                fallbackAniListScore: fallbackScore,
+                onUpdate: { partial in
+                    await MainActor.run {
+                        libraryStore.applySiteScores(partial, for: anime)
+                    }
+                }
+            )
+
+            var rels = await relsTask
             if rels.isEmpty {
                 let snapshot = anime.matchSnapshot
                 let allSnapshots = libraryStore.allAnime.map(\.matchSnapshot)
                 rels = AnimeRelationsService.shared.discoverLibraryFranchiseRelations(for: snapshot, allLibrary: allSnapshots)
             }
             relatedAnime = rels
-            let dubs = await DubbedLanguageService.shared.fetchDubbedLanguages(malId: anime.malID)
+
+            let dubs = await dubsTask
             if !dubs.isEmpty {
                 libraryStore.mergeDubbedLanguages(dubs.map { $0.name }, for: anime)
             }
+
+            let fetchedScores = await scoresTask
+            libraryStore.applySiteScores(fetchedScores, for: anime)
+            isLoadingScores = false
         }
         .onChange(of: libraryStore.revision) { _, _ in
             if relatedAnime.isEmpty && !libraryStore.allAnime.isEmpty {
@@ -181,27 +205,16 @@ public struct AnimeDetailInspectorView: View {
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
 
-                // Score & Airing Status Badges
-                HStack(spacing: 6) {
-                    if let score = anime.malScore {
-                        HStack(spacing: 3) {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.yellow)
-                            Text(String(format: "%.1f", score))
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(Color.black.opacity(0.65))
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.8)
-                        )
-                    }
+                // Airing Status Badge + Multi-Website Score Badges
+                AiringStatusBadge(status: anime.airingStatus)
+                    .padding(.top, 2)
 
-                    AiringStatusBadge(status: anime.airingStatus)
-                }
+                SiteScoresBadgeStrip(
+                    malID: anime.malID,
+                    siteScores: libraryStore.siteScoresByMalID[anime.malID],
+                    fallbackScore: anime.malScore,
+                    isLoading: isLoadingScores
+                )
                 .padding(.top, 2)
 
                 if let dates = anime.airingDatesDisplay {
@@ -497,8 +510,15 @@ public struct AnimeDetailInspectorView: View {
                 }
                 Divider().opacity(0.3)
                 metadataRow(label: "MAL ID", value: "\(anime.malID)")
-                if let score = anime.malScore {
-                    metadataRow(label: "MAL Score", value: String(format: "%.2f", score))
+                if let siteScores = libraryStore.siteScoresByMalID[anime.malID], !siteScores.entries.isEmpty {
+                    ForEach(siteScores.entries, id: \.source) { entry in
+                        metadataRow(
+                            label: "\(entry.source.displayName)",
+                            value: "\(AnimeSiteScores.formatScore(entry.score, for: entry.source)) / 10"
+                        )
+                    }
+                } else if let score = anime.malScore {
+                    metadataRow(label: "Community Score", value: String(format: "%.2f / 10", score))
                 }
                 if let releaseDate = anime.seasonYearFormatted {
                     metadataRow(label: "Release Date", value: releaseDate)
@@ -674,7 +694,20 @@ public struct AnimeDetailInspectorView: View {
 
     private func refreshAllData(forceRefreshRelations: Bool = false) async {
         isRefreshing = true
+        isLoadingScores = true
         await MetadataHydrationService.shared.refreshAnimeMetadata(anime: anime, context: modelContext)
+        if let refreshedScores = await MultiSiteScoreService.shared.cachedScores(for: anime.malID) {
+            libraryStore.applySiteScores(refreshedScores, for: anime)
+        } else {
+            let fetchedScores = await MultiSiteScoreService.shared.fetchAllScores(
+                for: anime.malID,
+                fallbackAniListScore: anime.malScore,
+                forceRefresh: true
+            )
+            libraryStore.applySiteScores(fetchedScores, for: anime)
+        }
+        isLoadingScores = false
+
         var rels = await AnimeRelationsService.shared.fetchRelations(for: anime.malID, title: anime.title, forceRefresh: forceRefreshRelations)
         if rels.isEmpty {
             let snapshot = anime.matchSnapshot

@@ -13,6 +13,7 @@ public struct AnimeCardSnapshot: Equatable, Sendable {
     public let currentEpisodeProgress: Int
     public let totalEpisodes: Int?
     public let malScore: Double?
+    public let scoreSource: ScoreSource
     public let userRating: Int?
     public let airingStatus: AiringStatus?
     public let isSelected: Bool
@@ -27,6 +28,7 @@ public struct AnimeCardSnapshot: Equatable, Sendable {
         currentEpisodeProgress: Int,
         totalEpisodes: Int?,
         malScore: Double?,
+        scoreSource: ScoreSource = .mal,
         userRating: Int?,
         airingStatus: AiringStatus?,
         isSelected: Bool
@@ -40,6 +42,7 @@ public struct AnimeCardSnapshot: Equatable, Sendable {
         self.currentEpisodeProgress = currentEpisodeProgress
         self.totalEpisodes = totalEpisodes
         self.malScore = malScore
+        self.scoreSource = scoreSource
         self.userRating = userRating
         self.airingStatus = airingStatus
         self.isSelected = isSelected
@@ -47,7 +50,11 @@ public struct AnimeCardSnapshot: Equatable, Sendable {
 }
 
 extension TrackedAnime {
-    public func cardSnapshot(for preference: TitleLanguagePreference, isSelected: Bool) -> AnimeCardSnapshot {
+    public func cardSnapshot(
+        for preference: TitleLanguagePreference,
+        isSelected: Bool,
+        scoreDisplay: (source: ScoreSource, score: Double)? = nil
+    ) -> AnimeCardSnapshot {
         AnimeCardSnapshot(
             persistentID: persistentModelID,
             malID: malID,
@@ -57,7 +64,8 @@ extension TrackedAnime {
             watchStatus: watchStatus,
             currentEpisodeProgress: currentEpisodeProgress,
             totalEpisodes: totalEpisodes,
-            malScore: malScore,
+            malScore: scoreDisplay?.score ?? malScore,
+            scoreSource: scoreDisplay?.source ?? .aniList,
             userRating: userRating,
             airingStatus: airingStatus,
             isSelected: isSelected
@@ -207,18 +215,8 @@ public struct AnimeCardView: View, Equatable {
 
             Spacer()
 
-            if let score = snapshot.malScore {
-                HStack(spacing: 2) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 8))
-                        .foregroundStyle(.cyan)
-                    Text(String(format: "%.1f", score))
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
-                }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(Color.black.opacity(0.70))
-                .clipShape(Capsule())
+            if let score = snapshot.malScore, score > 0 {
+                SiteScoreCardPill(source: snapshot.scoreSource, score: score)
             }
         }
         .padding(6)

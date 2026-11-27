@@ -6,6 +6,7 @@ public struct DiscoverCardSnapshot: Equatable, Sendable {
     public let displayTitle: String
     public let coverImageURL: String
     public let score: Double?
+    public let scoreSource: ScoreSource
     public let airingStatus: AiringStatus?
     public let episodes: Int?
     public let seasonYearFormatted: String?
@@ -17,6 +18,7 @@ public struct DiscoverCardSnapshot: Equatable, Sendable {
         displayTitle: String,
         coverImageURL: String,
         score: Double?,
+        scoreSource: ScoreSource = .aniList,
         airingStatus: AiringStatus?,
         episodes: Int?,
         seasonYearFormatted: String?,
@@ -27,6 +29,7 @@ public struct DiscoverCardSnapshot: Equatable, Sendable {
         self.displayTitle = displayTitle
         self.coverImageURL = coverImageURL
         self.score = score
+        self.scoreSource = scoreSource
         self.airingStatus = airingStatus
         self.episodes = episodes
         self.seasonYearFormatted = seasonYearFormatted
@@ -38,12 +41,14 @@ public struct DiscoverCardSnapshot: Equatable, Sendable {
         dto: JikanAnimeDTO,
         trackedStatus: WatchStatus?,
         titleLanguagePreference: TitleLanguagePreference,
-        isSelected: Bool
+        isSelected: Bool,
+        scoreDisplay: (source: ScoreSource, score: Double)? = nil
     ) {
         self.malID = dto.malId
         self.displayTitle = dto.displayTitle(for: titleLanguagePreference)
         self.coverImageURL = dto.coverImageURL
-        self.score = dto.score
+        self.score = scoreDisplay?.score ?? dto.score
+        self.scoreSource = scoreDisplay?.source ?? .aniList
         self.airingStatus = AiringStatus.from(raw: dto.status)
         self.episodes = dto.episodes
         self.seasonYearFormatted = dto.seasonYearFormatted
@@ -115,18 +120,8 @@ public struct DiscoverAnimeCard: View, Equatable {
                 VStack {
                     HStack {
                         Spacer()
-                        if let score = snapshot.score {
-                            HStack(spacing: 3) {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 8))
-                                    .foregroundStyle(.yellow)
-                                Text(String(format: "%.1f", score))
-                                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                            }
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Color.black.opacity(0.70))
-                            .clipShape(Capsule())
+                        if let score = snapshot.score, score > 0 {
+                            SiteScoreCardPill(source: snapshot.scoreSource, score: score)
                         }
                     }
                     .padding(6)

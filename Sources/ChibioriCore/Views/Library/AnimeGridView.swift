@@ -27,7 +27,8 @@ public struct AnimeGridView: View {
                     ForEach(animes) { anime in
                         let snapshot = anime.cardSnapshot(
                             for: navState.titleLanguagePreference,
-                            isSelected: selectedAnimeID == anime.persistentModelID
+                            isSelected: selectedAnimeID == anime.persistentModelID,
+                            scoreDisplay: libraryStore.primaryScoreDisplay(for: anime, preference: navState.preferredScoreSource)
                         )
                         AnimeCardView(
                             snapshot: snapshot,

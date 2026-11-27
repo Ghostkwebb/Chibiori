@@ -143,6 +143,11 @@ public final class NavigationState {
             defaults.set(titleLanguagePreference.rawValue, forKey: "preferredTitleLanguage")
         }
     }
+    public var preferredScoreSource: ScoreDisplayPreference {
+        didSet {
+            defaults.set(preferredScoreSource.rawValue, forKey: "preferredScoreSource")
+        }
+    }
     private static var saveGridSizeWorkItem: DispatchWorkItem?
     public var gridCardSize: Double {
         didSet {
@@ -176,6 +181,13 @@ public final class NavigationState {
             self.titleLanguagePreference = pref
         } else {
             self.titleLanguagePreference = .english
+        }
+
+        if let savedScoreSrc = defaults.string(forKey: "preferredScoreSource"),
+           let scorePref = ScoreDisplayPreference(rawValue: savedScoreSrc) {
+            self.preferredScoreSource = scorePref
+        } else {
+            self.preferredScoreSource = .auto
         }
 
         let savedGridSize = defaults.double(forKey: "libraryGridCardSize")

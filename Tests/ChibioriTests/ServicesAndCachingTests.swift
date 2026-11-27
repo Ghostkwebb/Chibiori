@@ -287,4 +287,87 @@ final class ServicesAndCachingTests: XCTestCase {
         XCTAssertFalse(scheduleVM.isLoading)
         XCTAssertEqual(scheduleVM.schedules.map(\.malId), [444])
     }
+
+    // MARK: - MultiSiteScoreService Multi-Provider Resolution & Caching
+
+    func testMultiSiteScoreServiceFetchesNormalizesAndCachesScores() async throws {
+        let session = MockURLProtocol.makeSession { request in
+            let url = request.url?.absoluteString ?? ""
+            if url.contains("api.jikan.moe/v4/anime/64459") {
+                return MockStubResponse(body: Data(#"{"data":{"score":8.15}}"#.utf8))
+            }
+            if url.contains("graphql.anilist.co") {
+                return MockStubResponse(body: Data(#"{"data":{"Media":{"id":180999,"averageScore":68}}}"#.utf8))
+            }
+            if url.contains("kitsu.io/api/edge/mappings") {
+                return MockStubResponse(body: Data(#"{"included":[{"type":"anime","attributes":{"slug":"fool-night","averageRating":"83.06"}}]}"#.utf8))
+            }
+            if url.contains("shikimori.io/api/animes/64459") {
+                return MockStubResponse(body: Data(#"{"id":64459,"score":"7.76"}"#.utf8))
+            }
+            return MockStubResponse(statusCode: 404, body: Data())
+        }
+        defer { MockURLProtocol.unregister(session: session) }
+
+        let cacheFile = tempRoot.appendingPathComponent("site_scores.json")
+        let service = MultiSiteScoreService(
+            cacheFileURL: cacheFile,
+            session: session,
+            aniList: AniListClient(session: session, minimumInterval: 0)
+        )
+
+        let scores = await service.fetchAllScores(for: 64459)
+        XCTAssertEqual(scores.malScore ?? 0, 8.15, accuracy: 0.001)
+        XCTAssertEqual(scores.aniListScore ?? 0, 6.8, accuracy: 0.001)
+        XCTAssertEqual(scores.kitsuScore ?? 0, 8.306, accuracy: 0.001)
+        XCTAssertEqual(scores.shikimoriScore ?? 0, 7.76, accuracy: 0.001)
+        XCTAssertEqual(scores.aniListID, 180999)
+        XCTAssertEqual(scores.kitsuSlug, "fool-night")
+        XCTAssertEqual(scores.primaryCardBadge?.source, .mal)
+        XCTAssertEqual(ScoreSource.aniList.pageURL(malID: 64459, aniListID: scores.aniListID)?.absoluteString, "https://anilist.co/anime/180999")
+        XCTAssertEqual(ScoreSource.kitsu.pageURL(malID: 64459, kitsuSlug: scores.kitsuSlug)?.absoluteString, "https://kitsu.io/anime/fool-night")
+
+        // Wait briefly for debounced disk write, then reload fresh instance
+        try await Task.sleep(nanoseconds: 500_000_000)
+        let reloaded = MultiSiteScoreService(cacheFileURL: cacheFile, session: session)
+        let cached = await reloaded.cachedScores(for: 64459)
+        XCTAssertEqual(cached?.malScore ?? 0, 8.15, accuracy: 0.001)
+        XCTAssertEqual(cached?.shikimoriScore ?? 0, 7.76, accuracy: 0.001)
+
+        // Verify direct MAL public HTML fallback score parser when Jikan is unreachable
+        let sampleHTML = """
+        <span itemprop="ratingValue" class="score-label score-8">8.16</span>
+        """
+        XCTAssertEqual(MultiSiteScoreService.parseMALHTMLScore(from: sampleHTML) ?? 0, 8.16, accuracy: 0.001)
+
+        // Verify partial MAL-only prefetch still allows fetchAllScores to populate all other providers in the inspector
+        let partialPrefetched = await reloaded.prefetchBatchScores(for: [90001], preference: .mal)
+        XCTAssertTrue(partialPrefetched.isEmpty || partialPrefetched[90001]?.hasFetchedAllProviders == false)
+        let session2 = MockURLProtocol.makeSession { request in
+            let url = request.url?.absoluteString ?? ""
+            if url.contains("api.jikan.moe/v4/anime/90002") {
+                return MockStubResponse(body: Data(#"{"data":{"score":8.57}}"#.utf8))
+            }
+            if url.contains("graphql.anilist.co") {
+                return MockStubResponse(body: Data(#"{"data":{"Media":{"id":555,"averageScore":86}}}"#.utf8))
+            }
+            if url.contains("shikimori.io/api/animes/90002") {
+                return MockStubResponse(body: Data(#"{"id":90002,"score":"8.4"}"#.utf8))
+            }
+            return MockStubResponse(statusCode: 404, body: Data())
+        }
+        defer { MockURLProtocol.unregister(session: session2) }
+
+        let service2 = MultiSiteScoreService(
+            cacheFileURL: tempRoot.appendingPathComponent("site_scores_partial.json"),
+            session: session2,
+            aniList: AniListClient(session: session2, minimumInterval: 0)
+        )
+        _ = await service2.prefetchBatchScores(for: [90002], preference: .mal)
+        let fullAfterPartial = await service2.fetchAllScores(for: 90002)
+        XCTAssertTrue(fullAfterPartial.hasFetchedAllProviders)
+        XCTAssertEqual(fullAfterPartial.malScore ?? 0, 8.57, accuracy: 0.001)
+        XCTAssertEqual(fullAfterPartial.aniListScore ?? 0, 8.6, accuracy: 0.001)
+        XCTAssertEqual(fullAfterPartial.shikimoriScore ?? 0, 8.4, accuracy: 0.001)
+    }
 }

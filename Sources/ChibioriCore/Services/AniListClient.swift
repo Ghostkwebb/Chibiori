@@ -377,6 +377,27 @@ public actor AniListClient {
         return dto
     }
 
+    public func fetchScoreInfo(malId: Int) async -> (aniListID: Int?, score: Double?)? {
+        let gql = """
+        query ($idMal: Int) {
+          Media(idMal: $idMal, type: ANIME) {
+            id
+            averageScore
+          }
+        }
+        """
+        guard let payload: AniListMediaPayload = try? await execute(
+            query: gql,
+            variables: ["idMal": .int(malId)],
+            timeout: 6.0,
+            maxRetries: 0
+        ), let media = payload.Media else {
+            return nil
+        }
+        let normalizedScore = (media.averageScore ?? 0) > 0 ? (media.averageScore ?? 0) / 10.0 : nil
+        return (media.id, normalizedScore)
+    }
+
     public func fetchAiringSchedule(
         startTimestamp: Int,
         endTimestamp: Int,

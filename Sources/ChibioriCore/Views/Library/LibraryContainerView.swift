@@ -20,7 +20,8 @@ public struct LibraryContainerView: View {
             airing: navState.selectedAiringStatusFilter,
             query: navState.librarySearchQuery,
             sortOption: navState.selectedSortOption,
-            titlePreference: navState.titleLanguagePreference
+            titlePreference: navState.titleLanguagePreference,
+            scorePreference: navState.preferredScoreSource
         )
     }
 
@@ -93,6 +94,10 @@ public struct LibraryContainerView: View {
             let items = currentFilteredAnime.prefix(40).map { ($0.malID, $0.coverImageRemoteURL, $0.coverImageFilename) }
             CoverImageManager.shared.prefetchCovers(items: items)
         }
+        .task(id: "\(state.preferredScoreSource.rawValue)_\(watchStatusFilter?.rawValue ?? "all")_\(state.selectedAiringStatusFilter?.rawValue ?? "all")_\(currentFilteredAnime.count)") {
+            let ids = currentFilteredAnime.map(\.malID)
+            await libraryStore.prefetchScores(for: ids, preference: state.preferredScoreSource)
+        }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 // Airing Status Filter Pill / Menu
@@ -138,6 +143,19 @@ public struct LibraryContainerView: View {
                     Label(state.titleLanguagePreference.displayName, systemImage: state.titleLanguagePreference.icon)
                 }
                 .help("Preferred Title Language (English, Romaji, Native)")
+
+                // Score Website Source Menu
+                Menu {
+                    Picker("Score Source", selection: $state.preferredScoreSource) {
+                        ForEach(ScoreDisplayPreference.allCases) { option in
+                            Text(option.displayName).tag(option)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Label("Score: \(state.preferredScoreSource.shortLabel)", systemImage: "star.square.on.square")
+                }
+                .help("Choose preferred website for card and table scores")
 
                 // Grid Size Slider Popover (Visible in Grid Mode)
                 if state.viewMode == .grid {

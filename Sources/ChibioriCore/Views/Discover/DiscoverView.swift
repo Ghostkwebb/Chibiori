@@ -144,11 +144,15 @@ public struct DiscoverView: View {
                                     let matchingTracked = libraryStore.anime(forMalID: dto.malId)
                                     let isTrackedSelected = matchingTracked != nil && matchingTracked?.persistentModelID == state.selectedAnimeID
                                     let isCardSelected = isDTOSelected || isTrackedSelected
+                                    let scoreDisplay = matchingTracked.flatMap {
+                                        libraryStore.primaryScoreDisplay(for: $0, preference: navState.preferredScoreSource)
+                                    } ?? libraryStore.siteScoresByMalID[dto.malId]?.badge(for: navState.preferredScoreSource)
                                     let snapshot = DiscoverCardSnapshot(
                                         dto: dto,
                                         trackedStatus: matchingTracked?.watchStatus,
                                         titleLanguagePreference: navState.titleLanguagePreference,
-                                        isSelected: isCardSelected
+                                        isSelected: isCardSelected,
+                                        scoreDisplay: scoreDisplay
                                     )
 
                                     DiscoverAnimeCard(

@@ -108,11 +108,15 @@ public struct WeeklyCalendarView: View {
                                         let tracked = libraryStore.anime(forMalID: dto.malId)
                                         let isCardSelected: Bool = (state.selectedJikanDTO?.malId == dto.malId) ||
                                             (tracked != nil && tracked?.persistentModelID == state.selectedAnimeID)
+                                        let scoreDisplay = tracked.flatMap {
+                                            libraryStore.primaryScoreDisplay(for: $0, preference: navState.preferredScoreSource)
+                                        } ?? libraryStore.siteScoresByMalID[dto.malId]?.badge(for: navState.preferredScoreSource)
                                         let snapshot = DiscoverCardSnapshot(
                                             dto: dto,
                                             trackedStatus: tracked?.watchStatus,
                                             titleLanguagePreference: navState.titleLanguagePreference,
-                                            isSelected: isCardSelected
+                                            isSelected: isCardSelected,
+                                            scoreDisplay: scoreDisplay
                                         )
 
                                         DiscoverAnimeCard(

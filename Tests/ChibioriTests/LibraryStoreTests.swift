@@ -8,6 +8,7 @@ final class LibraryStoreTests: XCTestCase {
     private var context: ModelContext!
     private var tempCloudFolder: URL!
     private var cloudSync: CloudSyncService!
+    private var scoreService: MultiSiteScoreService!
     private var store: LibraryStore!
 
     override func setUp() async throws {
@@ -21,12 +22,14 @@ final class LibraryStoreTests: XCTestCase {
         try FileManager.default.createDirectory(at: tempCloudFolder, withIntermediateDirectories: true)
         cloudSync = CloudSyncService(folderURL: tempCloudFolder)
         cloudSync.isCloudSyncEnabled = false
+        scoreService = MultiSiteScoreService(cacheFileURL: tempCloudFolder.appendingPathComponent("scores.json"))
 
-        store = LibraryStore(modelContext: context, cloudSync: cloudSync)
+        store = LibraryStore(modelContext: context, cloudSync: cloudSync, scoreService: scoreService)
     }
 
     override func tearDown() async throws {
         store = nil
+        scoreService = nil
         cloudSync = nil
         context = nil
         container = nil
@@ -156,5 +159,52 @@ final class LibraryStoreTests: XCTestCase {
         let discoverBefore = DiscoverCardSnapshot(dto: dto, trackedStatus: .watching, titleLanguagePreference: .english, isSelected: false)
         let discoverAfter = DiscoverCardSnapshot(dto: dto, trackedStatus: .completed, titleLanguagePreference: .english, isSelected: false)
         XCTAssertNotEqual(discoverBefore, discoverAfter)
+    }
+
+    func testApplySiteScoresPromotesVerifiedMALScoreAndUpdatesPrimaryBadge() {
+        let dto = JikanAnimeDTO(malId: 64459, title: "Fool Night", status: "Finished Airing", episodes: 12, score: 6.8)
+        let anime = store.addOrUpdate(from: dto, status: .planToWatch)
+
+        // Before multi-site fetch, falls back to AniList badge & score
+        let beforeBadge = store.primaryScoreDisplay(for: anime)
+        XCTAssertEqual(beforeBadge?.source, .aniList)
+        XCTAssertEqual(beforeBadge?.score ?? 0, 6.8, accuracy: 0.01)
+
+        let multiScores = AnimeSiteScores(
+            malID: 64459,
+            malScore: 8.15,
+            aniListScore: 6.8,
+            kitsuScore: 8.31,
+            shikimoriScore: 7.76
+        )
+        store.applySiteScores(multiScores, for: anime)
+
+        XCTAssertEqual(anime.malScore ?? 0, 8.15, accuracy: 0.01)
+        let malBadge = store.primaryScoreDisplay(for: anime, preference: .auto)
+        XCTAssertEqual(malBadge?.source, .mal)
+        XCTAssertEqual(malBadge?.score ?? 0, 8.15, accuracy: 0.01)
+
+        let aniBadge = store.primaryScoreDisplay(for: anime, preference: .aniList)
+        XCTAssertEqual(aniBadge?.source, .aniList)
+        XCTAssertEqual(aniBadge?.score ?? 0, 6.8, accuracy: 0.01)
+
+        let shikiBadge = store.primaryScoreDisplay(for: anime, preference: .shikimori)
+        XCTAssertEqual(shikiBadge?.source, .shikimori)
+        XCTAssertEqual(shikiBadge?.score ?? 0, 7.76, accuracy: 0.01)
+
+        let kitsuBadge = store.primaryScoreDisplay(for: anime, preference: .kitsu)
+        XCTAssertEqual(kitsuBadge?.source, .kitsu)
+        XCTAssertEqual(kitsuBadge?.score ?? 0, 8.31, accuracy: 0.01)
+
+        // Verify .scoreDesc respects preferred score source ordering
+        let otherDto = JikanAnimeDTO(malId: 100, title: "Higher AL Lower MAL", status: "Finished Airing", episodes: 12, score: 8.5)
+        let other = store.addOrUpdate(from: otherDto, status: .planToWatch)
+        store.applySiteScores(AnimeSiteScores(malID: 100, malScore: 7.2, aniListScore: 8.5), for: other)
+
+        let sortedByMAL = store.filteredAnime(status: .planToWatch, airing: nil, query: "", sortOption: .scoreDesc, titlePreference: .english, scorePreference: .mal)
+        XCTAssertEqual(sortedByMAL.first?.malID, 64459)
+
+        let sortedByAniList = store.filteredAnime(status: .planToWatch, airing: nil, query: "", sortOption: .scoreDesc, titlePreference: .english, scorePreference: .aniList)
+        XCTAssertEqual(sortedByAniList.first?.malID, 100)
     }
 }

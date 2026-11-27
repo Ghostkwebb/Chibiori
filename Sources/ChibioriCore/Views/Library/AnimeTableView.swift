@@ -87,21 +87,20 @@ public struct AnimeTableView: View {
             }
             .width(min: 65, ideal: 75)
 
-            TableColumn("MAL Score") { anime in
-                if let score = anime.malScore {
-                    HStack(spacing: 3) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.yellow)
-                        Text(String(format: "%.1f", score))
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                    }
+            TableColumn("Score") { anime in
+                if let display = libraryStore.primaryScoreDisplay(for: anime, preference: navState.preferredScoreSource) {
+                    SiteScoreCardPill(
+                        source: display.source,
+                        score: display.score,
+                        fontSize: 11,
+                        logoHeight: 13
+                    )
                 } else {
                     Text("—")
                         .foregroundStyle(.tertiary)
                 }
             }
-            .width(min: 75, ideal: 85)
+            .width(min: 75, ideal: 90)
 
             TableColumn("Airing") { anime in
                 AiringStatusBadge(status: anime.airingStatus)

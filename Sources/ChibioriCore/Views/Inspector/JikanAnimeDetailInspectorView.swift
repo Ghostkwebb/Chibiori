@@ -10,6 +10,8 @@ public struct JikanAnimeDetailInspectorView: View {
 
     @State private var relatedAnime: [RelatedAnimeItem] = []
     @State private var loadedDubbedLanguages: [DubbedLanguage] = []
+    @State private var siteScores: AnimeSiteScores? = nil
+    @State private var isLoadingScores = false
 
     public init(dto: JikanAnimeDTO, onAddedToLibrary: @escaping (TrackedAnime) -> Void) {
         self.dto = dto
@@ -57,10 +59,28 @@ public struct JikanAnimeDetailInspectorView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: dto.malId) {
-            async let rels = AnimeRelationsService.shared.fetchRelations(for: dto.malId, title: dto.title)
-            async let dubs = DubbedLanguageService.shared.fetchDubbedLanguages(malId: dto.malId)
+            let malID = dto.malId
+            let fallbackScore = dto.score
+            let title = dto.title
+            isLoadingScores = true
+            async let rels = AnimeRelationsService.shared.fetchRelations(for: malID, title: title)
+            async let dubs = DubbedLanguageService.shared.fetchDubbedLanguages(malId: malID)
+            async let scores = MultiSiteScoreService.shared.fetchAllScores(
+                for: malID,
+                fallbackAniListScore: fallbackScore,
+                onUpdate: { partial in
+                    await MainActor.run {
+                        siteScores = partial
+                        libraryStore.applySiteScores(partial)
+                    }
+                }
+            )
             relatedAnime = await rels
             loadedDubbedLanguages = await dubs
+            let resolvedScores = await scores
+            siteScores = resolvedScores
+            libraryStore.applySiteScores(resolvedScores)
+            isLoadingScores = false
         }
     }
 
@@ -88,27 +108,16 @@ public struct JikanAnimeDetailInspectorView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
 
-                // Score & Airing Status Badges
-                HStack(spacing: 6) {
-                    if let score = dto.score {
-                        HStack(spacing: 3) {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.yellow)
-                            Text(String(format: "%.1f", score))
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(Color.black.opacity(0.65))
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.8)
-                        )
-                    }
+                // Airing Status Badge + Multi-Website Score Badges
+                AiringStatusBadge(status: AiringStatus.from(raw: dto.status))
+                    .padding(.top, 2)
 
-                    AiringStatusBadge(status: AiringStatus.from(raw: dto.status))
-                }
+                SiteScoresBadgeStrip(
+                    malID: dto.malId,
+                    siteScores: siteScores ?? libraryStore.siteScoresByMalID[dto.malId],
+                    fallbackScore: dto.score,
+                    isLoading: isLoadingScores
+                )
                 .padding(.top, 2)
 
                 if let dates = dto.airingDatesDisplay {
@@ -211,6 +220,16 @@ public struct JikanAnimeDetailInspectorView: View {
                     metadataRow(label: "Age Rating", value: rating)
                 }
                 metadataRow(label: "MyAnimeList ID", value: "\(dto.malId)")
+                if let resolved = siteScores ?? libraryStore.siteScoresByMalID[dto.malId], !resolved.entries.isEmpty {
+                    ForEach(resolved.entries, id: \.source) { entry in
+                        metadataRow(
+                            label: entry.source.displayName,
+                            value: "\(AnimeSiteScores.formatScore(entry.score, for: entry.source)) / 10"
+                        )
+                    }
+                } else if let score = dto.score {
+                    metadataRow(label: "AniList Score", value: "\(AnimeSiteScores.formatScore(score, for: .aniList)) / 10")
+                }
             }
         }
     }

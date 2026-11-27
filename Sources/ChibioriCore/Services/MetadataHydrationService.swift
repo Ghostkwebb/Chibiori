@@ -277,7 +277,6 @@ public final class MetadataHydrationService {
             }
 
             if let eps = meta.episodes, eps > 0 { anime.totalEpisodes = eps }
-            if let score = meta.score, score > 0 { anime.malScore = score }
             if let releaseDate = meta.seasonYear, !releaseDate.isEmpty { anime.seasonYear = releaseDate }
             if let endDate = meta.airingEndDate, !endDate.isEmpty { anime.airingEndDate = endDate }
             if let syn = meta.synopsis, !syn.isEmpty { anime.synopsis = syn }
@@ -286,6 +285,17 @@ public final class MetadataHydrationService {
             if let jp = meta.japaneseTitle, !jp.isEmpty { anime.japaneseTitle = jp }
             if let cover = meta.coverURL, !cover.isEmpty { anime.coverImageRemoteURL = cover }
             if !meta.genres.isEmpty { anime.genres = meta.genres }
+
+            let siteScores = await MultiSiteScoreService.shared.fetchAllScores(
+                for: anime.malID,
+                fallbackAniListScore: meta.score,
+                forceRefresh: true
+            )
+            if let malScore = siteScores.malScore, malScore > 0 {
+                anime.malScore = malScore
+            } else if anime.malScore == nil, let aniScore = meta.score, aniScore > 0 {
+                anime.malScore = aniScore
+            }
 
             let dubs = await DubbedLanguageService.shared.fetchDubbedLanguages(malId: anime.malID, forceRefresh: true)
             if !dubs.isEmpty {
